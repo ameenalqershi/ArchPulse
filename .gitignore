@@ -14,3 +14,5 @@ artifacts/
 *.pfx
 *.snk
 *.key
+__pycache__/
+*.pyc

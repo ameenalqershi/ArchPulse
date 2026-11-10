@@ -67,3 +67,7 @@ Full specifications, 205 original tasks and requirement mapping are held in the 
 ## License and brand
 
 Apache License, Version 2.0, SPDX `Apache-2.0`, in [LICENSE](LICENSE). This does not grant trademark rights. The name ArchPulse is not claimed globally unique. No external third-party assets are shipped in this foundation bundle.
+
+## Foundation review and community responsibility
+
+For the current, evidence-scoped state of repository setup see the [foundation verification ledger](docs/operations/FOUNDATION-VERIFICATION.md), [CI gate expectations](docs/operations/CI-GATES.md), [reviewer onboarding](docs/contributing/reviewer-onboarding.md), [maintainer nominations](docs/contributing/maintainer-nomination.md) and the [unresolved name/branding risk](docs/operations/BRANDING-RISK.md). These are foundation procedures, not completed product capabilities.
