@@ -74,6 +74,48 @@ class NuGetLicenseAuditTests(unittest.TestCase):
         self.assertEqual(["example@1.0.0"], self.check()["pendingManualReviews"])
         self.assertFalse(self.check(strict=True)["passed"])
 
+    def test_legacy_exception_cannot_mask_new_disallowed_expression(self):
+        self.write_nuspec("Example", "1.0.0", license_expression="GPL-3.0-only")
+        self.policy.write_text(json.dumps({
+            "acceptedSpdxExpressions": ["MIT"],
+            "pendingLegacyMetadataReviews": {
+                "example@1.0.0": {"issue": "https://example.org/issues/1",
+                                  "reason": "Legacy URL-only metadata review",
+                                  "source": "https://example.org/license"}
+            }
+        }), encoding="utf-8")
+        result = self.check()
+        self.assertFalse(result["passed"])
+        self.assertTrue(any("cannot override a declared license" in e for e in result["errors"]))
+
+    def test_legacy_exception_cannot_mask_changed_url(self):
+        self.write_nuspec("Example", "1.0.0", license_url="https://unexpected.example/license")
+        self.policy.write_text(json.dumps({
+            "acceptedSpdxExpressions": ["MIT"],
+            "pendingLegacyMetadataReviews": {
+                "example@1.0.0": {"issue": "https://example.org/issues/1",
+                                  "reason": "Legacy URL-only metadata review",
+                                  "source": "https://example.org/license"}
+            }
+        }), encoding="utf-8")
+        result = self.check()
+        self.assertFalse(result["passed"])
+        self.assertTrue(any("URL absent or changed" in e for e in result["errors"]))
+
+    def test_legacy_exception_requires_url_not_missing_metadata(self):
+        self.write_nuspec("Example", "1.0.0")
+        self.policy.write_text(json.dumps({
+            "acceptedSpdxExpressions": ["MIT"],
+            "pendingLegacyMetadataReviews": {
+                "example@1.0.0": {"issue": "https://example.org/issues/1",
+                                  "reason": "Legacy URL-only metadata review",
+                                  "source": "https://example.org/license"}
+            }
+        }), encoding="utf-8")
+        result = self.check()
+        self.assertFalse(result["passed"])
+        self.assertTrue(any("URL absent or changed" in e for e in result["errors"]))
+
     def test_unknown_new_package_fails_even_with_existing_exception(self):
         self.write_lock({"Example": {"type": "Direct", "resolved": "1.0.0"},
                          "NewPkg": {"type": "Transitive", "resolved": "2.0.0"}})

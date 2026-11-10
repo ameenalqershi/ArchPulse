@@ -67,6 +67,13 @@ def audit(repo: Path, cache: Path, policy_file: Path, require_complete: bool = F
             review = exceptions[identity]
             if not all(review.get(k) for k in ("issue", "reason", "source")):
                 failures.append(f"Malformed pending review for {identity}")
+            # An exception is only for unchanged URL-only legacy metadata.
+            # Never let it mask a newly declared SPDX expression or license file.
+            if expression is not None or entry["licenseFile"] is not None:
+                failures.append(f"Legacy URL-only exception cannot override a declared license: {identity}")
+            legacy_url = entry["legacyLicenseUrl"]
+            if not legacy_url or legacy_url != review.get("source"):
+                failures.append(f"Legacy license URL absent or changed for {identity}")
             entry["auditStatus"] = "manual-review-pending"
             entry["reviewIssue"] = review.get("issue")
             observed_exceptions.add(identity)
