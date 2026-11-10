@@ -8,9 +8,9 @@ Source of truth: [S20 Production Roadmap](https://app.notion.com/p/4143830ba34d8
 | B — Production-capable core | graph, Roslyn, persistence, Guardian contracts, continuity invariants | Planned |
 | C — Complete capability integration | Studio, runtime, FeatureAtlas, DataJourney, RepoLab, Futures, MCP, clients, test journeys | Planned |
 | D — Production hardening | sandbox, privacy, fault recovery, security, accessibility, performance benchmarks | Planned |
-| E — Open-source launch readiness | license, governance, onboarding, CI, documentation, signed/verifiable release | Partially staged, NOT verified |
+| E — Open-source launch readiness | license, governance, onboarding, CI, documentation, signed/verifiable release | Foundation partially verified; complete launch gate remains Planned |
 
-This package stages governance, docs and one tiny evidence-receipt sample; **it does not satisfy any complete gate**, and it does not create the public GitHub repository.
+The public GitHub repository and a small evidence-receipt sample exist. This foundation does **not** satisfy any complete product delivery gate. For actual observed evidence see [foundation verification](docs/operations/FOUNDATION-VERIFICATION.md).
 
 ## Critical first work
 
@@ -20,4 +20,4 @@ This package stages governance, docs and one tiny evidence-receipt sample; **it 
 - **T005 / S01:** full modular solution after T002.
 - **T117 / S25:** developer agent handoff after T005, T053, and T105.
 
-See [task source](https://app.notion.com/p/5f2c39784dc24174a8989488350dd0fa) for all 205 tasks and [S26](https://app.notion.com/p/4143830ba34d8185a0edc83f974c55cd) for the 192-requirement baseline. Issue creation and live progress synchronization remain pending until repository creation.
+See [task source](https://app.notion.com/p/5f2c39784dc24174a8989488350dd0fa) for all 205 tasks and [S26](https://app.notion.com/p/4143830ba34d8185a0edc83f974c55cd) for the 192-requirement baseline. Selected real GitHub issues exist for T001, T002, T003, T005 and T053. The full 205-row registry is a traceability index, not 205 GitHub issues or implemented tasks; synchronize status only after independent verification.
