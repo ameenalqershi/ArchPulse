@@ -26,3 +26,7 @@ Requires .NET 10 SDK. `dotnet restore ArchPulse.sln`; `dotnet build ArchPulse.sl
 ## Handoff
 
 See [handoff protocol](docs/operations/agent-handoff/README.md) and [schema](docs/operations/agent-handoff/handoff.schema.json). The file `FOUNDATION-2026-11-10.json` records what was observed **in this staging artifact** (not GitHub). An agent must verify repository creation before writing remote IDs, branch SHA or CI conclusions.
+
+## Evidence audit and current handoff
+
+The original foundation checkpoint is historical and contains formerly pending remote actions. Review the latest [foundation verification ledger](docs/operations/FOUNDATION-VERIFICATION.md) and [2026-11-10 audit handoff](docs/operations/agent-handoff/FOUNDATION-AUDIT-2026-11-10.json), then independently query the latest GitHub branch, ruleset and CI before changing anything. Also read the [CI gate policy](docs/operations/CI-GATES.md) and unresolved [name/branding risk](docs/operations/BRANDING-RISK.md).
