@@ -30,3 +30,7 @@ See [handoff protocol](docs/operations/agent-handoff/README.md) and [schema](doc
 ## Evidence audit and current handoff
 
 The original foundation checkpoint is historical and contains formerly pending remote actions. Review the latest [foundation verification ledger](docs/operations/FOUNDATION-VERIFICATION.md) and [2026-11-10 audit handoff](docs/operations/agent-handoff/FOUNDATION-AUDIT-2026-11-10.json), then independently query the latest GitHub branch, ruleset and CI before changing anything. Also read the [CI gate policy](docs/operations/CI-GATES.md) and unresolved [name/branding risk](docs/operations/BRANDING-RISK.md).
+
+## Machine-checkable checkpoints (S25)
+
+Before taking any external action, run `python3 scripts/validate_handoff.py` and review the [independent recovery runbook](docs/operations/agent-handoff/REHEARSAL.md). The validator only checks structure and common secret patterns; it does not authenticate a previous agent’s claims or grant authorization. Every incoming agent must re-fetch live GitHub refs, PRs, checks and Notion dependencies, and reconcile Unknown effects before retry. See [T117 draft checkpoint](docs/operations/agent-handoff/T117-2026-11-10.json); do not interpret in-progress/review checkpoints as feature completion.

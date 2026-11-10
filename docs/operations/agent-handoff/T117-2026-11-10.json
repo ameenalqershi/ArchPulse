@@ -1,0 +1,67 @@
+{
+  "schema": "archpulse-agent-handoff/v1",
+  "taskId": "T117",
+  "specification": "S25",
+  "status": "in-progress",
+  "repository": "https://github.com/ameenalqershi/ArchPulse",
+  "branch": "chore/T117-handoff-validation-20261110",
+  "baseCommit": "6602183884bfb7b6dcd24803fb1d5db1ccdc28db",
+  "workingCommit": null,
+  "lastVerifiedAction": "On authorized Linux VPS, retrieved the canonical S25 and T117 Notion pages and independently checked main SHA 6602183884bfb7b6dcd24803fb1d5db1ccdc28db. Before publication, the isolated worktree's expanded Python unittest suite passed 32/32; remote CI for this branch is not yet known.",
+  "completedSteps": [
+    "Independently reconciled GitHub repository current main and clean /opt/archpulse checkout with the previously committed foundation",
+    "Reviewed Notion S25 source and T117 original task; T117 dependencies not assumed complete",
+    "Implemented strict offline validator for handoff v1 schema, Git SHA refs, idempotent structured effects and common credential signatures",
+    "Added 16 positive and adversarial handoff contract tests: local Python suite now 32/32",
+    "Drafted independent receiver rehearsal playbook, with explicit no-chat-memory requirement and Unknown effect reconciliation"
+  ],
+  "unverifiedSteps": [
+    "Publish this branch and open a PR by GitHub connector; verify remote SHA and PR URL independently",
+    "GitHub Actions checks for this branch must complete successfully before any merge",
+    "Do not mark T117 Verified while T005, T053 and T105 dependencies are unproven",
+    "T118: an actual second independent agent must run the receiver protocol without previous conversation context",
+    "Do not assert S11 runtime continuity is implemented by the S25 process documentation"
+  ],
+  "changedFiles": [
+    "scripts/validate_handoff.py",
+    "scripts/test_handoff_validator.py",
+    ".github/workflows/ci.yml",
+    "docs/operations/agent-handoff/REHEARSAL.md",
+    "docs/operations/agent-handoff/README.md",
+    "AGENTS.md",
+    "docs/operations/agent-handoff/T117-2026-11-10.json"
+  ],
+  "testResults": [
+    "2026-11-10 isolated VPS worktree /opt/archpulse-t117: python3 scripts/validate_handoff.py passed on 3 historical checkpoints",
+    "2026-11-10 isolated VPS worktree /opt/archpulse-t117: python3 -m unittest discover -s scripts -p test_*.py: 32 passed, 0 failed; source changes not yet on GitHub"
+  ],
+  "pullRequests": [],
+  "externalEffects": [
+    {
+      "action": "create-pr",
+      "idempotencyKey": "archpulse-t117-handoff-validation-20261110",
+      "state": "planned",
+      "receipt": null
+    }
+  ],
+  "knownBlockers": [
+    "VPS gh is not authenticated; publish using GitHub connector without placing access tokens on VPS",
+    "T117 depends on T005,T053,T105, which are still tracking issues and cannot be assumed verified",
+    "No independent second-agent rehearsal performed; this work prepares validation and a receiver protocol"
+  ],
+  "risks": [
+    "Pattern-based secret detection is incomplete; a separate independent audit remains necessary",
+    "Notion conceptual checkpoint marker differs from repository v1 marker and needs explicit future migration if unified",
+    "A successful local contract suite does not imply the user-facing S11 continuity engine is implemented"
+  ],
+  "nextSafeAction": "Before creating a branch or PR effect, inspect GitHub refs and existing PRs for T117 and the stable idempotency key. Then publish the tested isolated branch, verify remote commit and CI, and request review without merging.",
+  "requiredCapabilities": [
+    "git.read",
+    "git.write",
+    "github.pr.create",
+    "github.actions.read",
+    "dotnet.build",
+    "python.tests",
+    "notion.read"
+  ]
+}
