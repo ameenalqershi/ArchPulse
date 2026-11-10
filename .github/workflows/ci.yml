@@ -43,5 +43,7 @@ jobs:
         run: python3 scripts/validate_foundation.py
       - name: Validate traceability indices and dependency DAG
         run: python3 scripts/validate_traceability.py
+      - name: Validate development-agent handoff checkpoints
+        run: python3 scripts/validate_handoffs.py
       - name: Validate traceability and handoff contracts
         run: python3 -m unittest discover -s scripts -p 'test_*.py' -v

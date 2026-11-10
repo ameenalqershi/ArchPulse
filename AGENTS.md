@@ -12,7 +12,7 @@
 
 ## Commands and environment
 
-Requires .NET 10 SDK. `dotnet restore ArchPulse.sln`; `dotnet build ArchPulse.sln --no-restore -c Release`; `dotnet test ArchPulse.sln --no-build -c Release`. These commands are unverified until a real SDK run is recorded. Do not add fake projects for unimplemented modules.
+Requires .NET 10 SDK. `dotnet restore ArchPulse.sln --locked-mode`; `dotnet build ArchPulse.sln --no-restore -c Release`; `dotnet test ArchPulse.sln --no-build -c Release`. Validate foundation and handoffs with `python3 scripts/validate_foundation.py`, `python3 scripts/validate_traceability.py`, `python3 scripts/validate_handoffs.py`, and `python3 -m unittest discover -s scripts -p 'test_*.py' -v`. These commands are unverified until a real run is recorded for the exact commit. Do not add fake projects for unimplemented modules.
 
 ## Start/resume checklist
 
