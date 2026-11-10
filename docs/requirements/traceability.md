@@ -1,5 +1,7 @@
 # Requirements traceability — S26 snapshot
 
+For snapshot preservation, contributor review rules, and automated negative checks, see the [requirement baseline lock guide](baseline-lock-guide.md). Passing these checks does **not** establish implemented functionality.
+
 > Original source: [Notion S26](https://app.notion.com/p/4143830ba34d8185a0edc83f974c55cd). All requirements below are **planned** until independent code, tests and approved evidence demonstrate completion. Imported for contributor visibility; review source for later changes.
 
 | Requirement ID | Expected product behavior | Notion tasks | Acceptance evidence required | Implementation status |
