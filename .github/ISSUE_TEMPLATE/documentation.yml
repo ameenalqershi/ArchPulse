@@ -1,0 +1,33 @@
+name: "Documentation improvement"
+description: "Improve technical or community guidance"
+title: "[DOCUMENTATION] "
+labels: ["documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: "Read CONTRIBUTING.md. Never publish secrets or exploit details."
+  - type: input
+    id: source-task
+    attributes:
+      label: "Notion task Txxx / spec Sxx (if applicable)"
+      placeholder: "T001 / S00"
+  - type: textarea
+    id: context
+    attributes:
+      label: "Affected pages and current ambiguity"
+      description: "Explain precisely; distinguish observed facts from proposals."
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: "Proposed improvement"
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: "How to verify links and accuracy"
+      description: "Include test approach, evidence and links without personal data."
+    validations:
+      required: true

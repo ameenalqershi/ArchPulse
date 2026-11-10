@@ -1,0 +1,3 @@
+# Accessibility policy
+
+ArchPulse's planned Web Studio must support keyboard navigation, semantic alternatives to large diagrams (tree and table), focus control, text descriptions of critical violations and test journeys, reduced motion, usable contrast, zoom, and mobile-friendly navigation. Critical information must not be communicated through color only. Measure against WCAG 2.2 AA as the intended target, verified by automated checks and human reviews. **No Web Studio exists in this foundation**, and compliance is not claimed. See S09, S27, S31 and [Quality](docs/architecture/quality-strategy.md).

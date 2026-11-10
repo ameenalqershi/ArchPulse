@@ -1,0 +1,33 @@
+name: "Maintainer / reviewer nomination"
+description: "Volunteer for a reviewed role; contributions do not require membership"
+title: "[CONTRIBUTOR_APPLICATION] "
+labels: ["help wanted"]
+body:
+  - type: markdown
+    attributes:
+      value: "Read CONTRIBUTING.md. Never publish secrets or exploit details."
+  - type: input
+    id: source-task
+    attributes:
+      label: "Notion task Txxx / spec Sxx (if applicable)"
+      placeholder: "T001 / S00"
+  - type: textarea
+    id: context
+    attributes:
+      label: "Proposed scope and experience"
+      description: "Explain precisely; distinguish observed facts from proposals."
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: "Prior contributions or review evidence"
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: "Availability, consent and conflict disclosures"
+      description: "Include test approach, evidence and links without personal data."
+    validations:
+      required: true

@@ -1,0 +1,58 @@
+{
+  "schema": "archpulse-agent-handoff/v1",
+  "taskId": "T005",
+  "specification": "S01",
+  "status": "in-progress",
+  "repository": "https://github.com/ameenalqershi/ArchPulse",
+  "branch": "main",
+  "baseCommit": "0ad26d6daf44afaa6f04bc7276073a011ffb37d6",
+  "workingCommit": null,
+  "lastVerifiedAction": "Local .NET 10 Release build and 4 unit tests passed on authorized VPS; repository publication beyond the initial LICENSE pending.",
+  "completedSteps": [
+    "Created public repository with Apache-2.0",
+    "Cloned repository on VPS at /opt/archpulse",
+    "Installed .NET SDK 10.0.114",
+    "Created .NET solution with core evidence receipt and test project",
+    "Verified Release build: 0 warnings, 0 errors; 4/4 unit tests passed",
+    "Imported 34 Notion specifications, 205 task rows and 192 requirement rows as public index"
+  ],
+  "unverifiedSteps": [
+    "Push foundation code to GitHub",
+    "Verify GitHub Actions on actual commit",
+    "Configure protected branch and security settings",
+    "Verify Discussions, labels, milestones and community onboarding",
+    "Cross-agent handoff rehearsal"
+  ],
+  "changedFiles": [
+    "README.md",
+    "README.ar.md",
+    "AGENTS.md",
+    "Directory.Build.props",
+    "global.json",
+    "engine/ArchPulse.Core",
+    "tests/ArchPulse.Core.Tests",
+    "docs/requirements",
+    "docs/architecture"
+  ],
+  "testResults": [
+    "VPS local dotnet build -c Release succeeded: 0 warning(s), 0 error(s)",
+    "VPS local dotnet test -c Release: passed 4, failed 0, skipped 0"
+  ],
+  "pullRequests": [],
+  "externalEffects": [
+    "GitHub repository created: ameenalqershi/ArchPulse, public, main, Apache-2.0",
+    "VPS .NET 10 SDK installed system-wide; no reboot performed"
+  ],
+  "knownBlockers": [],
+  "risks": [
+    "Repository is initially one-owner; requiring external review prematurely can lock routine changes",
+    "R-xxx rows are proposed Notion requirements, not implemented claims"
+  ],
+  "nextSafeAction": "Complete static validation on VPS, publish foundation files through authorized GitHub connector, inspect remote commit and CI, then configure only safe protections.",
+  "requiredCapabilities": [
+    "GitHub repository contents write",
+    "Remote Desktop Commander Linux shell",
+    "Notion read access",
+    "GitHub Actions read"
+  ]
+}

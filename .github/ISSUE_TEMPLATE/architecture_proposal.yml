@@ -1,0 +1,33 @@
+name: "Architecture proposal / RFC"
+description: "Discuss architectural decisions before implementation"
+title: "[ARCHITECTURE_PROPOSAL] "
+labels: ["architecture"]
+body:
+  - type: markdown
+    attributes:
+      value: "Read CONTRIBUTING.md. Never publish secrets or exploit details."
+  - type: input
+    id: source-task
+    attributes:
+      label: "Notion task Txxx / spec Sxx (if applicable)"
+      placeholder: "T001 / S00"
+  - type: textarea
+    id: context
+    attributes:
+      label: "Current architecture and impact"
+      description: "Explain precisely; distinguish observed facts from proposals."
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: "Proposed alternatives with Mermaid diagram for EACH"
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: "Trade-offs, security, tests, and approval required"
+      description: "Include test approach, evidence and links without personal data."
+    validations:
+      required: true

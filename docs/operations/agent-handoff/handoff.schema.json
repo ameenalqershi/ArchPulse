@@ -1,0 +1,168 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ArchPulse Agent Handoff v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "taskId",
+    "specification",
+    "status",
+    "repository",
+    "branch",
+    "baseCommit",
+    "workingCommit",
+    "lastVerifiedAction",
+    "completedSteps",
+    "unverifiedSteps",
+    "changedFiles",
+    "testResults",
+    "pullRequests",
+    "externalEffects",
+    "knownBlockers",
+    "risks",
+    "nextSafeAction",
+    "requiredCapabilities"
+  ],
+  "properties": {
+    "schema": {
+      "const": "archpulse-agent-handoff/v1"
+    },
+    "taskId": {
+      "type": "string",
+      "pattern": "^T[0-9]{3}$"
+    },
+    "specification": {
+      "type": "string",
+      "pattern": "^S[0-9]{2}$"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "planned",
+        "in-progress",
+        "blocked",
+        "review",
+        "verified",
+        "unknown"
+      ]
+    },
+    "repository": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "branch": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "baseCommit": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "workingCommit": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "lastVerifiedAction": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "nextSafeAction": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "completedSteps": {
+      "type": "array",
+      "items": {
+        "type": [
+          "string",
+          "object"
+        ]
+      }
+    },
+    "unverifiedSteps": {
+      "type": "array",
+      "items": {
+        "type": [
+          "string",
+          "object"
+        ]
+      }
+    },
+    "changedFiles": {
+      "type": "array",
+      "items": {
+        "type": [
+          "string",
+          "object"
+        ]
+      }
+    },
+    "testResults": {
+      "type": "array",
+      "items": {
+        "type": [
+          "string",
+          "object"
+        ]
+      }
+    },
+    "pullRequests": {
+      "type": "array",
+      "items": {
+        "type": [
+          "string",
+          "object"
+        ]
+      }
+    },
+    "externalEffects": {
+      "type": "array",
+      "items": {
+        "type": [
+          "string",
+          "object"
+        ]
+      }
+    },
+    "knownBlockers": {
+      "type": "array",
+      "items": {
+        "type": [
+          "string",
+          "object"
+        ]
+      }
+    },
+    "risks": {
+      "type": "array",
+      "items": {
+        "type": [
+          "string",
+          "object"
+        ]
+      }
+    },
+    "requiredCapabilities": {
+      "type": "array",
+      "items": {
+        "type": [
+          "string",
+          "object"
+        ]
+      }
+    }
+  }
+}

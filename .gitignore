@@ -1,0 +1,16 @@
+bin/
+obj/
+.vs/
+.vscode/*
+!.vscode/extensions.json
+**/TestResults/
+*.trx
+*.user
+*.suo
+artifacts/
+.env
+.env.*
+!.env.example
+*.pfx
+*.snk
+*.key
