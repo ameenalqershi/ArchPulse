@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: Apache-2.0
+name: ADR Governance Contract
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: adr-governance-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  adr-contract:
+    name: adr-contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # pinned v4
+        with:
+          persist-credentials: false
+      - name: Validate source traceability
+        run: python3 scripts/validate_traceability.py
+      - name: Verify ADR schema, status and narrative
+        run: python3 scripts/validate_adr.py
+      - name: Adversarial ADR contract tests
+        run: python3 -m unittest discover -s scripts -p 'test_adr_validator.py' -v
