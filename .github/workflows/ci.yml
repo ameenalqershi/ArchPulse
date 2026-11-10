@@ -27,6 +27,8 @@ jobs:
         run: dotnet --info
       - name: Restore
         run: dotnet restore ArchPulse.sln --locked-mode
+      - name: Audit NuGet license metadata (review exceptions explicit)
+        run: python3 scripts/audit_nuget_licenses.py
       - name: Build
         run: dotnet build ArchPulse.sln --no-restore --configuration Release
       - name: Unit tests

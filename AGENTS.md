@@ -12,7 +12,7 @@
 
 ## Commands and environment
 
-Requires .NET 10 SDK. `dotnet restore ArchPulse.sln`; `dotnet build ArchPulse.sln --no-restore -c Release`; `dotnet test ArchPulse.sln --no-build -c Release`. These commands are unverified until a real SDK run is recorded. Do not add fake projects for unimplemented modules.
+Requires .NET 10 SDK. `dotnet restore ArchPulse.sln`; `python3 scripts/audit_nuget_licenses.py` (offline NuGet metadata change gate; see `docs/operations/NUGET-LICENSE-AUDIT.md`); `dotnet build ArchPulse.sln --no-restore -c Release`; `dotnet test ArchPulse.sln --no-build -c Release`. These commands are unverified until a real SDK run is recorded. Do not add fake projects for unimplemented modules.
 
 ## Start/resume checklist
 

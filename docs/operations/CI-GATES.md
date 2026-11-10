@@ -8,6 +8,10 @@
 - `foundation-document-check`: structural and link checks from `scripts/validate_foundation.py`; independent Python standard-library contract tests are added by the foundation audit.
 - GitHub token permission is `contents: read`; checkout credentials are not persisted.
 
+## Pending PR: NuGet license metadata change gate (T104)
+
+A proposed CI step runs `python3 scripts/audit_nuget_licenses.py` after locked restore in `foundation-build-test`. It rejects newly unreviewed licenses and records an explicit legacy-metadata exception for `xunit.abstractions@2.0.3`. This is **not a full license-compliance certification**; `--require-complete` still fails until review. The change is not an active GitHub gate until the Pull Request checks have completed successfully.
+
 ## Intended additional gates (not all implemented)
 
 - Static analyzers, formatting checks, architecture policy conformance, dependency license audit and SBOM.
