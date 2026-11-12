@@ -75,6 +75,35 @@ public sealed class GraphTools
         catch (InvalidOperationException) { return Failure("Graph traversal safety limit exceeded."); }
     }
 
+    [McpServerTool(Name = "archpulse_linked_tests", ReadOnly = true)]
+    [Description("Read existing Roslyn-static direct test-to-method associations for one exact source-backed Method SymbolId and stored revision. Not test execution, coverage, runner discovery or a runtime trace.")]
+    public static CallToolResult LinkedTests(
+        GraphSnapshotStore store, StaticTestAssociationStore testStore,
+        string project, string revision, string symbolId)
+    {
+        var graph = ReadValidated(store, project, revision);
+        if (graph is null) return Failure("No stored graph for the specified project and revision.");
+        if (string.IsNullOrWhiteSpace(symbolId) || symbolId.Length > 2048 ||
+            !graph.Nodes.Any(n => n.SymbolId == symbolId && n.Kind == GraphNodeKind.Method))
+            return Failure("The exact source Method SymbolId is absent from this revision.");
+        try
+        {
+            var report = testStore.Load(graph);
+            var links = report?.ForTarget(symbolId);
+            return Success("Read-only, static direct test mapping. No observed execution or runner outcome.",
+                new { schema = "archpulse.method-test-selection/v1",
+                    project, revision, targetSymbolId = symbolId,
+                    mappingStatus = report is null ? "NotIndexed" :
+                        links!.Count == 0 ? "Unmapped" : "MappedDirectStatic",
+                    mappingScope = "RoslynStaticDirectOnly",
+                    runnerDiscovery = "NotRunnerDiscovered",
+                    executionStatus = "Unknown", observedCoverage = false,
+                    links = links ?? [] });
+        }
+        catch (InvalidDataException) { return Failure("Stored test links failed source-evidence validation."); }
+        catch (JsonException) { return Failure("Stored test links are malformed."); }
+    }
+
     [McpServerTool(Name = "archpulse_guardian_check", ReadOnly = true)]
     [Description("Evaluate a proposed forbidden cross-project relation against the exact saved graph. This is not policy approval or enforcement.")]
     public static CallToolResult GuardianCheck(GraphSnapshotStore store, string project, string revision,

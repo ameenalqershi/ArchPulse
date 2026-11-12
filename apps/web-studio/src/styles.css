@@ -66,3 +66,14 @@ input { border: 1px solid #bac9dc; padding: 10px 12px; border-radius: 8px; min-w
 footer { margin: 17px 0 10px; color: #708298; font-size: 11px; }
 @media (max-width: 1000px) { .studio-body { grid-template-columns: 1fr; } .inspector { max-height: none; } }
 @media (max-width: 560px) { .studio { padding: 12px; } .topbar { display: block; } .toolbar label { min-width: 100%; } .diagram-frame { height: 430px; min-height: 0; } .search-label { width: 100%; } .canvas-toolbar { gap: 4px; } }
+
+/* S31 in-place read-only test evidence; never insert TestCase nodes in the canvas. */
+.method-tests { margin: 20px 0; padding: 12px; border: 1px solid #d4e1ee;
+  border-radius: 10px; background: #f8fbff; }
+.method-tests h4 { margin: 0 0 12px; font-size: 14px; }
+.test-summary { color: #164d75; font-size: 13px; font-weight: 700; margin: 8px 0; }
+.test-links-list { display: grid; gap: 8px; max-height: 340px; overflow: auto; }
+.test-link { padding: 10px; display: grid; gap: 5px;
+  background: white; border: 1px solid #dbe5f1; border-radius: 8px; }
+.test-link ul { margin: 2px 0; padding-left: 15px; font-size: 11px; }
+.test-unavailable { color: #82501d; font-size: 12px; line-height: 1.5; }

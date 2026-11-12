@@ -19,6 +19,13 @@ builder.Services.AddSingleton(provider =>
         ?? Path.Combine(Path.GetTempPath(), "archpulse-graph");
     return new GraphSnapshotStore(path);
 });
+builder.Services.AddSingleton(provider =>
+{
+    var config = provider.GetRequiredService<IConfiguration>();
+    string path = config["ARCHPULSE_GRAPH_STORE"]
+        ?? Path.Combine(Path.GetTempPath(), "archpulse-graph");
+    return new StaticTestAssociationStore(path);
+});
 var app = builder.Build();
 
 app.MapGet("/health", () => Results.Ok(new
@@ -34,6 +41,45 @@ app.MapGet("/api/graphs/{project}/{revision}", (GraphSnapshotStore store,
     var graph = store.Load(project, revision);
     return graph is null ? Results.NotFound() : Results.Ok(graph);
 });
+
+// Read-only S31 evidence projection. No MSBuild evaluation or tests are triggered
+// by a request, and unavailable indexing is NOT treated as zero mapped tests.
+app.MapGet("/api/graphs/{project}/{revision}/test-links",
+    (GraphSnapshotStore graphs, StaticTestAssociationStore reports,
+     string project, string revision, string symbolId) =>
+    {
+        if (string.IsNullOrWhiteSpace(symbolId) || symbolId.Length > 2048)
+            return Results.BadRequest(new { error = "Exact source SymbolId is required." });
+        var graph = graphs.Load(project, revision);
+        if (graph is null) return Results.NotFound();
+        if (!graph.Nodes.Any(n => n.SymbolId == symbolId && n.Kind == GraphNodeKind.Method))
+            return Results.NotFound();
+        try
+        {
+            var report = reports.Load(graph);
+            var links = report?.ForTarget(symbolId);
+            return Results.Ok(new
+            {
+                schema = "archpulse.method-test-selection/v1",
+                project, revision, targetSymbolId = symbolId,
+                mappingStatus = report is null ? "NotIndexed" :
+                    links!.Count == 0 ? "Unmapped" : "MappedDirectStatic",
+                mappingScope = "RoslynStaticDirectOnly",
+                runnerDiscovery = "NotRunnerDiscovered",
+                executionStatus = "Unknown",
+                observedCoverage = false,
+                links = links ?? []
+            });
+        }
+        catch (InvalidDataException)
+        {
+            return Results.Problem("Stored test-link evidence failed validation.", statusCode: 422);
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return Results.Problem("Stored test-link evidence is unreadable.", statusCode: 422);
+        }
+    });
 
 app.MapGet("/api/graphs/{project}/{revision}/neighbors",
     (GraphSnapshotStore store, string project, string revision, string symbolId) =>

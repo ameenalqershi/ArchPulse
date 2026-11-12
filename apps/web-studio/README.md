@@ -41,6 +41,10 @@ authorization, HTTPS and a revised threat model.
 - Deterministic Mermaid export of visible nodes, true edges, and exact
   symbol ID mapping. This is **not** a measured runtime sequence diagram.
 - Responsive local UI, keyboard select, and explicit missing-data/diagnostic states.
+- S31 partial: on exact Method selection, a Tests Inspector section
+  reads immutable Roslyn-static links if indexed; distinguishes NotIndexed,
+  Unmapped and MappedDirectStatic without adding TestCase graph nodes or
+  inventing runtime test passes, coverage, or call traces.
 
 ## Not yet implemented
 
