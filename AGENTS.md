@@ -12,7 +12,7 @@
 
 ## Commands and environment
 
-Requires .NET 10 SDK. `dotnet restore ArchPulse.sln`; `python3 scripts/audit_nuget_licenses.py` (offline NuGet metadata change gate; see `docs/operations/NUGET-LICENSE-AUDIT.md`); `dotnet build ArchPulse.sln --no-restore -c Release`; `dotnet test ArchPulse.sln --no-build -c Release`. These commands are unverified until a real SDK run is recorded. Do not add fake projects for unimplemented modules.
+Requires .NET 10 SDK. `dotnet restore ArchPulse.sln --locked-mode`; `dotnet build ArchPulse.sln --no-restore -c Release`; `dotnet test ArchPulse.sln --no-build -c Release`. Validate foundation and handoffs with `python3 scripts/validate_foundation.py`, `python3 scripts/validate_traceability.py`, `python3 scripts/validate_handoffs.py`, and `python3 -m unittest discover -s scripts -p 'test_*.py' -v`. These commands are unverified until a real run is recorded for the exact commit. Do not add fake projects for unimplemented modules.
 
 ## Start/resume checklist
 
@@ -30,3 +30,45 @@ See [handoff protocol](docs/operations/agent-handoff/README.md) and [schema](doc
 ## Evidence audit and current handoff
 
 The original foundation checkpoint is historical and contains formerly pending remote actions. Review the latest [foundation verification ledger](docs/operations/FOUNDATION-VERIFICATION.md) and [2026-11-10 audit handoff](docs/operations/agent-handoff/FOUNDATION-AUDIT-2026-11-10.json), then independently query the latest GitHub branch, ruleset and CI before changing anything. Also read the [CI gate policy](docs/operations/CI-GATES.md) and unresolved [name/branding risk](docs/operations/BRANDING-RISK.md).
+
+## Rebuild branch handoff (2026-11-12)
+
+The ongoing .NET-native work is isolated on rebuild/dotnet-native-foundation.
+See docs/operations/REBUILD-2026-11-12.md,
+docs/operations/agent-handoff/REBUILD-2026-11-12.md and
+docs/guides/dotnet-native-cli.md. Never claim proposed S00–S33
+requirements are verified merely from foundation CI or the limited first
+Roslyn graph. Preserve existing agent work/PRs and do not rewrite main.
+
+## Experimental graph indexing milestone — 2026-11-12
+
+The rebuild branch also contains a real MSBuildWorkspace solution
+indexer, immutable JSON graph snapshots, evidence-scoped queries and
+preliminary ArchitectureGuardian rules. Read the .NET CLI guide and
+proposed ADR-0001. NEVER load untrusted MSBuild projects on the shared
+VPS. The waiver approver text is not verified identity and cannot
+authorize a protected change. S02/S03/S04/S15 remain incomplete.
+
+## Read-only local API milestone
+
+An experimental ASP.NET Core server exposes stored Graph queries on
+127.0.0.1:5217. See docs/guides/local-graph-api.md. The server is
+unauthenticated and must NEVER be publicly exposed. It cannot execute
+code or commit changes. Real MCP, Studio, identity and production API
+authorization are not yet implemented.
+
+## Experimental React Web Studio
+
+The stacked Web Studio branch introduces apps/web-studio. It only loads
+source-backed graph JSON by exact project and revision from the
+loopback-only ASP.NET API and never makes up nodes or traces.
+Do not treat it as a fully accepted S09/S27 studio or remotely expose
+its unauthenticated local servers. See apps/web-studio/README.md.
+
+## Native .NET MCP Apps experiment
+
+The experimental stacked MCP branch contains server/ArchPulse.McpServer
+(5 read-only tools plus ui://archpulse/graph). Never expose or tunnel
+the unauthenticated 127.0.0.1:5231 endpoint. Do not claim that tests
+in an MCP Apps host simulator demonstrate ChatGPT product integration.
+See docs/guides/mcp-apps-local.md. Full S29/S30 acceptance pending.
