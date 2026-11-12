@@ -1,3 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><OutputType>Exe</OutputType><Description>Offline read-only TRX result evidence; not an execution trace.</Description></PropertyGroup>
+  <ItemGroup><ProjectReference Include="../../engine/ArchPulse.Graph/ArchPulse.Graph.csproj" /></ItemGroup>
 </Project>
