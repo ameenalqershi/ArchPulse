@@ -1,34 +1,44 @@
 # Foundation CI and future quality gates
 
-**Current evidence as of 2026-11-10**: `Foundation CI` defines `foundation-build-test` and `foundation-document-check`. Both jobs passed in [GitHub Actions run 42758731375](https://github.com/ameenalqershi/ArchPulse/actions/runs/42758731375) on SHA `3c694ac44f445fba60c9e892e76ca96eb3022725`. New pull-request commits require fresh checks. They are not a product release certificate.
+## Native .NET migration
 
-## Existing jobs
+The live Foundation CI branch rebuild/dotnet-native-foundation contains two jobs:
 
-- `foundation-build-test`: locked NuGet restore, .NET Release build, four existing evidence-receipt unit tests.
-- `foundation-document-check`: structural and link checks from `scripts/validate_foundation.py`; independent Python standard-library contract tests are added by the foundation audit.
-- GitHub token permission is `contents: read`; checkout credentials are not persisted.
+- foundation-build-test: locked restore, Release build, all xUnit tests,
+  repository/handoff contract validator, and traceability validator.
+- foundation-document-check: independent locked restore and native .NET
+  repository, handoff and traceability validators.
 
-## Pending PR: NuGet license metadata change gate (T104)
+The names of **both** jobs are retained exactly because the active GitHub
+ruleset 26926696 for main requires them. In the past, document checks used
+Python. That dependency has been removed from the active workflow.
 
-A proposed CI step runs `python3 scripts/audit_nuget_licenses.py` after locked restore in `foundation-build-test`. It rejects newly unreviewed licenses and records an explicit legacy-metadata exception for `xunit.abstractions@2.0.3`. This is **not a full license-compliance certification**; `--require-complete` still fails until review. The change is not an active GitHub gate until the Pull Request checks have completed successfully.
+The migration's first PR head 1e01c2600e60a8e3bc036a212116996ee301c9e1
+passed GitHub Actions run 43246261098 (21 tests). The handoff-parity
+commit 60c2da6394a975455d838d3ff70e9552db6485b7 passed GitHub Actions
+run 43247535851 (28 tests). Both runs preceded this final Python-removal
+patch: **do not consider this cleanup verified until a new hosted run
+passes at its exact SHA**.
 
-## Intended additional gates (not all implemented)
+GitHub job tokens only have contents: read, and checkout credentials are
+not persisted. This CI passing does not certify product completion.
 
-- Static analyzers, formatting checks, architecture policy conformance, dependency license audit and SBOM.
-- Security scans (CodeQL or approved equivalent, secrets, dependency vulnerabilities), with one authoritative CodeQL configuration.
-- Integration tests in ephemeral isolated workers, regression/cross-platform suites, benchmark baselines and accessibility checks.
-- Release signing and artifact provenance; no signing keys or uploads in untrusted fork PRs.
+## Local reproduction
 
-**Never declare any of these checks active or green until the workflow and results have been independently observed.** Before adding required checks to branch rules, run them on a PR, inspect their names, pass states and trust boundaries, then update policy without locking contributors out.
+    dotnet restore ArchPulse.sln --locked-mode
+    dotnet build ArchPulse.sln -c Release --no-restore
+    dotnet test ArchPulse.sln -c Release --no-build
+    dotnet run --project tooling/ArchPulse.RepositoryValidator -c Release --no-build
+    dotnet run --project tooling/ArchPulse.TraceabilityValidator -c Release --no-build
 
-## Local reproducibility
+## Proposed later gates (not active yet)
 
-```bash
-python3 scripts/validate_foundation.py
-python3 -m unittest discover -s scripts -p 'test_*.py' -v
-dotnet restore ArchPulse.sln --locked-mode
-dotnet build ArchPulse.sln -c Release --no-restore
-dotnet test ArchPulse.sln -c Release --no-build --no-restore
-```
+Static analyzers, formatting, architecture policy conformance, dependency
+license audit and SBOM; CodeQL/secrets/vulnerability scans; isolated
+integration tests, benchmarks, accessibility; release signing and
+artifact provenance. Never present them as implemented/green without
+actual workflow evidence or configure them as required checks before
+their first successful GitHub run.
 
-References: [Quality Strategy](../architecture/quality-strategy.md), S16, S17, S19 and S20.
+References: S16, S17, S19, S20 and the
+[rebuild report](REBUILD-2026-11-12.md).
