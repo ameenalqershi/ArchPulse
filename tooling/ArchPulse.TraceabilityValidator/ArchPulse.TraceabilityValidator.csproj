@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <Description>Offline C# validation of ArchPulse specification/task/requirement references.</Description>
+  </PropertyGroup>
+</Project>

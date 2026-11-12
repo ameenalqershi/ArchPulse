@@ -40,3 +40,12 @@ dotnet test ArchPulse.sln -c Release --no-build --no-restore
 ```
 
 The latest verified GitHub branch/PR and CI receipt must be added to a new checkpoint after publication; never silently re-label an unverified external effect as success.
+
+## Historical ledger boundary (2026-11-12 update)
+
+The commands above document historical Python-backed foundation evidence,
+not the active source tree or current CI configuration. For the current
+native .NET build and validation commands, use the
+[.NET CLI guide](../guides/dotnet-native-cli.md) and the
+[rebuild report](REBUILD-2026-11-12.md). The original facts and run
+references have intentionally not been overwritten.
