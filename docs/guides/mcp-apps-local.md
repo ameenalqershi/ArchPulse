@@ -42,6 +42,7 @@ runtime traces. Missing revisions fail rather than producing fake data.
 - archpulse_symbol_context: exact selected symbol and relationships.
 - archpulse_find_evidenced_path: static/verified directed path with
   deterministic traversal limit; never a runtime trace claim.
+- archpulse_feature_signals: eighth read-only local MCP tool for T024 Roslyn MVC/handler/test candidate source signals; business meanings remain `Inferred` and unapproved ([guide](feature-discovery-local.md)).
 - archpulse_feature_scope: read-only operator-authored FeatureAtlas membership tied to an exact saved graph revision; candidate business links are not observed behavior or approved contracts ([guide](feature-atlas-local.md)).
 - archpulse_guardian_check: read-only proposed forbidden relation check,
   not a rule approval or policy write.

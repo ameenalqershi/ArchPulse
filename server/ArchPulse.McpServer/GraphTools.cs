@@ -104,6 +104,35 @@ public sealed class GraphTools
         catch (JsonException) { return Failure("Stored test links are malformed."); }
     }
 
+    [McpServerTool(Name = "archpulse_feature_signals", ReadOnly = true)]
+    [Description("Read exact-revision Roslyn source signals for human business-feature review. Never an approved mapping, registered runtime endpoint or observed test.")]
+    public static CallToolResult FeatureSignals(
+        GraphSnapshotStore graphs, FeatureDiscoveryStore discoveries,
+        string project, string revision)
+    {
+        var graph = ReadValidated(graphs, project, revision);
+        if (graph is null) return Failure("Graph revision was not stored.");
+        try
+        {
+            var report = discoveries.Load(graph);
+            if (report is null)
+                return Success("Source signal discovery NotIndexed; this is not proof of zero features.",
+                    new { schema = FeatureDiscoveryContract.Schema, project, revision,
+                        discoveryStatus = "NotIndexed",
+                        scope = FeatureDiscoveryContract.Scope, runtimeStatus = "Unknown",
+                        signals = Array.Empty<FeatureCandidateSignal>() });
+            if (report.Signals.Count > 500)
+                return Failure("Source signals exceed the bounded MCP response; use a smaller trusted fixture.");
+            return Success("Inferred business candidates only; source syntax is static, no registered route, runner result or verified business mapping.",
+                new { schema = report.Schema, project, revision,
+                    discoveryStatus = "IndexedCandidates", scope = report.DiscoveryScope,
+                    runtimeStatus = report.RuntimeStatus,
+                    signals = report.Signals, diagnostics = report.Diagnostics });
+        }
+        catch (InvalidDataException) { return Failure("Stored feature signals failed validation."); }
+        catch (JsonException) { return Failure("Stored feature signals are unreadable."); }
+    }
+
     [McpServerTool(Name = "archpulse_feature_scope", ReadOnly = true)]
     [Description("Read operator-curated candidate feature membership and exact existing static graph edges. This does not prove business behavior, ownership, execution or coverage.")]
     public static CallToolResult FeatureScope(

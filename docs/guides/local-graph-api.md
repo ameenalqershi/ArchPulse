@@ -11,6 +11,7 @@ authenticated production deployment.
 - GET /api/graphs/{project}/{revision}/neighbors?symbolId=...: exact symbol relationships.
 - GET /api/graphs/{project}/{revision}/path?from=...&to=...: bounded shortest sourced path.
 - GET /api/graphs/{project}/diff?from=...&to=...: compares immutable revision snapshots.
+- GET /api/graphs/{project}/{revision}/feature-signals: separately indexed, read-only T024 source candidates; `NotIndexed` if absent, HTTP 422 if invalid, no automatic business membership ([guide](feature-discovery-local.md)).
 - GET /api/graphs/{project}/{revision}/features: exact manually curated FeatureAtlas catalog, or explicit `NotIndexed` when absent (T023/S05 partial).
 - GET /api/graphs/{project}/{revision}/features/{featureId}: read-only candidate scope over exact graph node IDs and existing static edges; 404 for unknown feature, 422 for invalid stored data. [Details](feature-atlas-local.md).
 - POST /api/guardian/evaluate: read-only evaluation of up to 100 client-supplied rules

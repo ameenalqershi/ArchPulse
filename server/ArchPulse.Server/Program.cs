@@ -33,6 +33,13 @@ builder.Services.AddSingleton(provider =>
         ?? Path.Combine(Path.GetTempPath(), "archpulse-graph");
     return new FeatureCatalogStore(path);
 });
+builder.Services.AddSingleton(provider =>
+{
+    var config = provider.GetRequiredService<IConfiguration>();
+    var path = config["ARCHPULSE_GRAPH_STORE"]
+        ?? Path.Combine(Path.GetTempPath(), "archpulse-graph");
+    return new FeatureDiscoveryStore(path);
+});
 var app = builder.Build();
 
 app.MapGet("/health", () => Results.Ok(new
@@ -48,6 +55,48 @@ app.MapGet("/api/graphs/{project}/{revision}", (GraphSnapshotStore store,
     var graph = store.Load(project, revision);
     return graph is null ? Results.NotFound() : Results.Ok(graph);
 });
+
+// T024/S05: previously indexed source-signal candidates only. No on-demand
+// MSBuild evaluation, route registration, feature auto-approval or test execution.
+app.MapGet("/api/graphs/{project}/{revision}/feature-signals",
+    (GraphSnapshotStore graphs, FeatureDiscoveryStore signals,
+     string project, string revision) =>
+    {
+        var graph = graphs.Load(project, revision);
+        if (graph is null) return Results.NotFound();
+        try
+        {
+            var report = signals.Load(graph);
+            if (report is null)
+                return Results.Ok(new
+                {
+                    schema = FeatureDiscoveryContract.Schema, project, revision,
+                    discoveryStatus = "NotIndexed",
+                    scope = FeatureDiscoveryContract.Scope,
+                    runtimeStatus = "Unknown",
+                    signals = Array.Empty<FeatureCandidateSignal>()
+                });
+            if (report.Signals.Count > 500)
+                return Results.Problem("Source signals exceed local API response limit.",
+                    statusCode: 413);
+            return Results.Ok(new
+            {
+                schema = report.Schema, project, revision,
+                discoveryStatus = "IndexedCandidates",
+                scope = report.DiscoveryScope, runtimeStatus = report.RuntimeStatus,
+                signals = report.Signals,
+                diagnostics = report.Diagnostics
+            });
+        }
+        catch (InvalidDataException)
+        {
+            return Results.Problem("Stored source-signal report failed validation.", statusCode: 422);
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return Results.Problem("Stored source-signal report is unreadable.", statusCode: 422);
+        }
+    });
 
 // T023/S05 experimental feature overlay: human-authored candidate membership,
 // with exact graph node validation. No server-side imports, writes or inference.

@@ -45,6 +45,10 @@ AI collaboration or production hardening. S02/S03 remain incomplete.
 
 T023/S05 now has an **implemented partial** native C# feature catalog that requires an already indexed exact graph revision and an operator-provided candidate mapping. See the [local FeatureAtlas guide](feature-atlas-local.md) for the `feature-import`, `feature-show`, read-only API and seventh MCP tool. This does not automatically discover business features, validate them by tests, observe execution or complete the proposed S05 architecture.
 
+## Partial automatic source-signal discovery (T024/S05; 2026-11-13)
+
+The new `feature-discover <trusted.sln> --revision <sha> [--store <path>]` CLI analyzes Roslyn-declared MVC method attributes, naming-only Handlers and framework-name-matched test declarations without calling AI providers. `feature-signals <project> --revision <sha> --store <path>` reads the exact immutable sidecar. These are **inferred business candidates**, not auto-approved FeatureAtlas definitions or observed runtime events. [Reproducible fixture and limits](feature-discovery-local.md).
+
 ## Legacy Python retirement
 
 The four prior foundation/traceability Python scripts were analyzed and
