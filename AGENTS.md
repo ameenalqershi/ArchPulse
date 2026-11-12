@@ -75,3 +75,13 @@ See docs/guides/mcp-apps-local.md. Full S29/S30 acceptance pending.
 ## Native results-only Test Journey evidence (S31/S33 partial)
 
 The offline C# TRX importer in tooling/ArchPulse.TestJourney reads existing trusted local test reports and emits result-only evidence with SHA-256. It does NOT execute tests, observe implementation calls, capture values or prove test-to-method mapping. See docs/guides/test-journey-trx-results.md. Run only in approved local/CI contexts; never expose code execution through unauthenticated MCP or HTTP APIs.
+
+## Static method-to-test projection (S31/S33 partial)
+
+`SolutionGraphIndexer.AnalyzeSolutionAsync` and `ArchPulse.Cli test-links` can project
+framework-annotated test method declarations onto source-backed, directly invoked
+target method SymbolIds using Roslyn evidence. This is **not runner-discovered
+test-case identity, a passed test, per-test coverage, or an observed call trace**.
+Keep TestCases out of the default architecture canvas. No web/MCP execution
+endpoint may accept an untrusted project for this analysis. Read
+`docs/guides/in-place-method-test-associations.md` and the separate TRX results guide.
