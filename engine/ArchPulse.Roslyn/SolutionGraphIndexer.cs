@@ -17,6 +17,14 @@ public sealed class SolutionGraphIndexer
     private static readonly object RegistrationGate = new();
 
     public async Task<GraphSnapshot> IndexSolutionAsync(
+        string solutionPath, string revision, CancellationToken cancellationToken = default) =>
+        (await AnalyzeSolutionAsync(solutionPath, revision, cancellationToken)).Graph;
+
+    /// <summary>
+    /// Indexes the same source-backed graph and projects direct static test links.
+    /// Test metadata is only an annotated declaration; no runner or coverage is inferred.
+    /// </summary>
+    public async Task<SolutionGraphAnalysis> AnalyzeSolutionAsync(
         string solutionPath, string revision, CancellationToken cancellationToken = default)
     {
         solutionPath = Path.GetFullPath(solutionPath);
@@ -131,10 +139,13 @@ public sealed class SolutionGraphIndexer
             diagnostics.Add($"Dropped edge with missing source declaration: {edge.EdgeId}");
             edges.Remove(edge.EdgeId);
         }
-        return new GraphSnapshot(Path.GetFileNameWithoutExtension(solutionPath), revision,
+        var graph = new GraphSnapshot(Path.GetFileNameWithoutExtension(solutionPath), revision,
             nodes.Values.OrderBy(n => n.SymbolId, StringComparer.Ordinal).ToArray(),
             edges.Values.OrderBy(e => e.EdgeId, StringComparer.Ordinal).ToArray(),
             diagnostics.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray());
+        var testLinks = MethodTestAssociationIndexer.Project(graph,
+            compilations.Select(c => (c.Project.Name, c.Compilation)));
+        return new SolutionGraphAnalysis(graph, testLinks);
     }
 
     private static SourceEvidence Normalize(SourceEvidence evidence, string root)
@@ -148,3 +159,9 @@ public sealed class SolutionGraphIndexer
         };
     }
 }
+
+
+// An additive analysis result; graph storage and its canonical node/edge structure
+// are unchanged. Test declarations do not become standalone canvas nodes.
+public sealed record SolutionGraphAnalysis(
+    GraphSnapshot Graph, StaticTestAssociationReport TestAssociations);
