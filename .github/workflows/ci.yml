@@ -6,9 +6,6 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-concurrency:
-  group: foundation-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 jobs:
   foundation-build-test:
     name: foundation-build-test
@@ -16,34 +13,70 @@ jobs:
     timeout-minutes: 25
     steps:
       - name: Checkout without persisted credentials
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # pinned v4 ref as of 2026-11-10
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
       - name: Install .NET SDK
-        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # pinned v4 ref as of 2026-11-10
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73
         with:
           dotnet-version: 10.0.x
       - name: SDK version
         run: dotnet --info
-      - name: Restore
+      - name: Locked restore
         run: dotnet restore ArchPulse.sln --locked-mode
-      - name: Audit NuGet license metadata (review exceptions explicit)
-        run: python3 scripts/audit_nuget_licenses.py
-      - name: Build
+      - name: Restore golden multi-project solution without paid dependencies
+        run: dotnet restore examples/billing-multi-project/Billing.sln --locked-mode
+      - name: Release build
         run: dotnet build ArchPulse.sln --no-restore --configuration Release
-      - name: Unit tests
-        run: dotnet test ArchPulse.sln --no-build --configuration Release --logger 'trx;LogFileName=unit-tests.trx'
+      - name: Unit, graph and validator regression tests
+        run: dotnet test ArchPulse.sln --no-build --configuration Release --logger 'trx;LogFileName=archpulse-tests.trx'
+      - name: MCP streamable-HTTP and UI resource protocol smoke
+        run: bash scripts/ci-mcp-protocol.sh
+      - name: Offline foundation validation - native .NET
+        run: dotnet run --project tooling/ArchPulse.RepositoryValidator --no-build --configuration Release
+      - name: Offline S/T/R traceability validation - native .NET
+        run: dotnet run --project tooling/ArchPulse.TraceabilityValidator --no-build --configuration Release
   foundation-document-check:
     name: foundation-document-check
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - name: Check foundation structure, license, links and templates
-        run: python3 scripts/validate_foundation.py
-      - name: Validate traceability indices and dependency DAG
-        run: python3 scripts/validate_traceability.py
-      - name: Validate traceability and handoff contracts
-        run: python3 -m unittest discover -s scripts -p 'test_*.py' -v
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73
+        with:
+          dotnet-version: 10.0.x
+      - name: Locked tooling restore
+        run: dotnet restore tooling/ArchPulse.RepositoryValidator/ArchPulse.RepositoryValidator.csproj --locked-mode
+      - name: Build tooling
+        run: dotnet build tooling/ArchPulse.RepositoryValidator/ArchPulse.RepositoryValidator.csproj --no-restore --configuration Release
+      - name: Repository and handoff contracts
+        run: dotnet run --project tooling/ArchPulse.RepositoryValidator --no-build --configuration Release
+      - name: Traceability contracts
+        run: dotnet run --project tooling/ArchPulse.TraceabilityValidator --no-build --configuration Release
+  web-studio-build-test:
+    name: web-studio-build-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Install Node.js (pinned setup action)
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/web-studio/package-lock.json
+      - name: Locked install (Web Studio only)
+        run: npm ci --prefix apps/web-studio
+      - name: TypeScript and React production build
+        run: npm run build --prefix apps/web-studio
+      - name: Web graph identity and Mermaid tests
+        run: npm run test --prefix apps/web-studio
+      - name: Audit frontend packages
+        run: npm audit --prefix apps/web-studio --audit-level=high
