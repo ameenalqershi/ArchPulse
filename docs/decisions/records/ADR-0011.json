@@ -1,0 +1,70 @@
+{
+  "schemaVersion": "1.0",
+  "id": "ADR-0011",
+  "title": "Machine-readable architecture decision records with human review receipts",
+  "status": "Proposed",
+  "document": "docs/decisions/ADR-0011-governance-records.md",
+  "source": {
+    "specification": "S22",
+    "task": "T003",
+    "notion": "https://app.notion.com/p/4143830ba34d81a68732f75f600f214c"
+  },
+  "author": "ArchPulse architecture proposal",
+  "dates": {
+    "proposed": "2026-11-10",
+    "accepted": null
+  },
+  "affectedModules": [
+    "docs/decisions",
+    "scripts/validate_adr.py"
+  ],
+  "alternatives": [
+    {
+      "id": "A",
+      "label": "Markdown-only ADRs",
+      "evidence": [
+        "https://github.com/ameenalqershi/ArchPulse/blob/main/docs/decisions/ADR-template.md"
+      ],
+      "tradeoffs": "Easy authoring, hard to validate",
+      "mermaid": "flowchart LR\n  Author[\"Author narrative ADR\"] --> Human[\"Human reviews text\"]\n  Human --> History[\"Git history\"]"
+    },
+    {
+      "id": "B",
+      "label": "JSON receipt plus Markdown narrative",
+      "evidence": [
+        "https://app.notion.com/p/4143830ba34d81a68732f75f600f214c"
+      ],
+      "tradeoffs": "Offline validation with extra maintenance and human review",
+      "mermaid": "flowchart LR\n  Source[\"S22 and task\"] --> Json[\"Versioned JSON record\"]\n  Json --> Check[\"Offline validator / CI\"]\n  Json --> Markdown[\"Mermaid + rationale\"]\n  Check --> Review[\"Human review gate\"]"
+    }
+  ],
+  "proposal": "Explore a JSON-backed ADR lifecycle while preserving Markdown narratives; no accepted decision yet.",
+  "reviewers": [],
+  "approval": null,
+  "supersededBy": null,
+  "gates": {
+    "securityRequired": false,
+    "privacyRequired": false,
+    "contractRequired": false,
+    "persistenceRequired": false
+  },
+  "gateEvidence": {
+    "security": [],
+    "privacy": [],
+    "contract": [],
+    "persistence": []
+  },
+  "migration": {
+    "forward": "Introduce optional JSON records for proposals, then require a reviewed record before Accepted.",
+    "rollback": "Revert validation changes without deleting original ADR history.",
+    "compatibility": "Markdown-only proposed ADRs remain proposals; no automatic adoption."
+  },
+  "verification": {
+    "tests": [
+      "python3 -m unittest scripts/test_adr_validator.py"
+    ],
+    "ciUrl": null,
+    "graphImpact": "Decision metadata only; runtime evidence graph is not implemented."
+  },
+  "supersessionApproval": null
+}
