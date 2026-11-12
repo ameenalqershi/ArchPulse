@@ -37,6 +37,34 @@ class HandoffContractTests(unittest.TestCase):
             with self.subTest(path=path.name):
                 self.assertEqual(check_file(path, SCHEMA), [])
 
+    def test_exact_historical_pr25_checkpoint_is_readable_not_verified(self) -> None:
+        path = HANDOFF / "T117-PR25-2026-11-10.json"
+        historical = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(check_file(path, SCHEMA), [])
+        raw_errors = " | ".join(validate_checkpoint(historical, SCHEMA))
+        self.assertIn("missing idempotencyKey", raw_errors)
+        self.assertIn("invalid state", raw_errors)
+
+    def test_historical_waiver_is_byte_pinned_and_not_reusable(self) -> None:
+        path = HANDOFF / "T117-PR25-2026-11-10.json"
+        with tempfile.TemporaryDirectory() as directory:
+            candidate = Path(directory) / path.name
+            changed = json.loads(path.read_text(encoding="utf-8"))
+            changed["lastVerifiedAction"] += " (unreviewed copy)"
+            candidate.write_text(json.dumps(changed, ensure_ascii=False), encoding="utf-8")
+            errors = " | ".join(check_file(candidate, SCHEMA))
+        self.assertIn("missing idempotencyKey", errors)
+        self.assertIn("invalid state", errors)
+
+    def test_new_unkeyed_verified_effect_is_rejected(self) -> None:
+        data = self.base()
+        data["externalEffects"] = [{
+            "action": "publish-pr", "state": "verified", "receipt": "https://example.invalid/evidence"
+        }]
+        errors = " | ".join(validate_checkpoint(data, SCHEMA))
+        self.assertIn("missing idempotencyKey", errors)
+        self.assertIn("invalid state", errors)
+
     def test_valid_reference_checkpoint(self) -> None:
         self.assertEqual(self.check(), [])
 
