@@ -1,0 +1,17 @@
+{
+  "schema": "archpulse-nuget-license-policy/v1",
+  "acceptedSpdxExpressions": [
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "MIT"
+  ],
+  "pendingLegacyMetadataReviews": {
+    "xunit.abstractions@2.0.3": {
+      "issue": "https://github.com/ameenalqershi/ArchPulse/issues/10",
+      "reason": "Older transitive package reports licenseUrl but no package-level SPDX license expression. Requires explicit source/license text review before release.",
+      "source": "https://raw.githubusercontent.com/xunit/xunit/master/license.txt"
+    }
+  }
+}
