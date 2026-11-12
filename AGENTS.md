@@ -48,3 +48,11 @@ preliminary ArchitectureGuardian rules. Read the .NET CLI guide and
 proposed ADR-0001. NEVER load untrusted MSBuild projects on the shared
 VPS. The waiver approver text is not verified identity and cannot
 authorize a protected change. S02/S03/S04/S15 remain incomplete.
+
+## Read-only local API milestone
+
+An experimental ASP.NET Core server exposes stored Graph queries on
+127.0.0.1:5217. See docs/guides/local-graph-api.md. The server is
+unauthenticated and must NEVER be publicly exposed. It cannot execute
+code or commit changes. Real MCP, Studio, identity and production API
+authorization are not yet implemented.
