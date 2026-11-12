@@ -55,3 +55,26 @@ jobs:
         run: dotnet run --project tooling/ArchPulse.RepositoryValidator --no-build --configuration Release
       - name: Traceability contracts
         run: dotnet run --project tooling/ArchPulse.TraceabilityValidator --no-build --configuration Release
+  web-studio-build-test:
+    name: web-studio-build-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Install Node.js (pinned setup action)
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/web-studio/package-lock.json
+      - name: Locked install (Web Studio only)
+        run: npm ci --prefix apps/web-studio
+      - name: TypeScript and React production build
+        run: npm run build --prefix apps/web-studio
+      - name: Web graph identity and Mermaid tests
+        run: npm run test --prefix apps/web-studio
+      - name: Audit frontend packages
+        run: npm audit --prefix apps/web-studio --audit-level=high

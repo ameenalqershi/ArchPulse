@@ -56,3 +56,11 @@ An experimental ASP.NET Core server exposes stored Graph queries on
 unauthenticated and must NEVER be publicly exposed. It cannot execute
 code or commit changes. Real MCP, Studio, identity and production API
 authorization are not yet implemented.
+
+## Experimental React Web Studio
+
+The stacked Web Studio branch introduces apps/web-studio. It only loads
+source-backed graph JSON by exact project and revision from the
+loopback-only ASP.NET API and never makes up nodes or traces.
+Do not treat it as a fully accepted S09/S27 studio or remotely expose
+its unauthenticated local servers. See apps/web-studio/README.md.
