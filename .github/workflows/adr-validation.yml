@@ -17,11 +17,17 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout without persisted credentials
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # pinned v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # pinned v7
         with:
           persist-credentials: false
-      - name: Validate source traceability
-        run: python3 scripts/validate_traceability.py
+      - name: Install .NET SDK for native traceability gate
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73
+        with:
+          dotnet-version: 10.0.x
+      - name: Locked native traceability tooling restore
+        run: dotnet restore tooling/ArchPulse.TraceabilityValidator/ArchPulse.TraceabilityValidator.csproj --locked-mode
+      - name: Validate source traceability with native C#
+        run: dotnet run --project tooling/ArchPulse.TraceabilityValidator --no-restore -- --root .
       - name: Verify ADR schema, status and narrative
         run: python3 scripts/validate_adr.py
       - name: Adversarial ADR contract tests
