@@ -32,6 +32,8 @@ jobs:
         run: dotnet test ArchPulse.sln --no-build --configuration Release --logger 'trx;LogFileName=archpulse-tests.trx'
       - name: MCP streamable-HTTP and UI resource protocol smoke
         run: bash scripts/ci-mcp-protocol.sh
+      - name: Exact source-backed feature catalog import and projection (S05/T023 partial)
+        run: bash scripts/ci-feature-atlas.sh
       - name: Native results-only TRX evidence smoke (S33 partial)
         run: bash scripts/ci-test-journey-results.sh
       - name: Explicit local test-run process and content-digest receipt (S33 partial)

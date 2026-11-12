@@ -15,6 +15,23 @@ dotnet run --project apps/cli/ArchPulse.Cli --no-build -c Release -- \
   index-solution examples/billing-multi-project/Billing.sln \
   --revision ci-mcp-fixture --store "$TEMP/graph" >"$TEMP/index.json"
 
+# Use a real, statically resolved call in the trusted fixture. Business membership
+# is a manually authored candidate, not a source-proven business claim.
+jq -e '([.Edges[] | select(.Relation == "Calls")] | length) > 0' "$TEMP/index.json" >/dev/null
+source="$(jq -r 'first(.Edges[] | select(.Relation == "Calls") | .FromSymbolId)' "$TEMP/index.json")"
+target="$(jq -r 'first(.Edges[] | select(.Relation == "Calls") | .ToSymbolId)' "$TEMP/index.json")"
+jq -n --arg source "$source" --arg target "$target" '{
+  schema:"archpulse.feature-catalog/v1",project:"Billing",revision:"ci-mcp-fixture",
+  features:[{id:"create-invoice",title:"Create Invoice",description:"Manual protocol fixture",
+    owner:"MCP CI fixture",criticality:"P0",scenarios:["Explicit scenario"],
+    acceptanceContracts:["Human review pending"], members:[
+      {symbolId:$source,reason:"Candidate source",claim:"Designed"},
+      {symbolId:$target,reason:"Candidate target",claim:"Inferred"}]}]
+}' >"$TEMP/manifest.json"
+dotnet run --project apps/cli/ArchPulse.Cli --no-build -c Release -- \
+  feature-import Billing --revision ci-mcp-fixture --store "$TEMP/graph" \
+  --manifest "$TEMP/manifest.json" >"$TEMP/import.json"
+
 ARCHPULSE_GRAPH_STORE="$TEMP/graph" \
 dotnet server/ArchPulse.McpServer/bin/Release/net10.0/ArchPulse.McpServer.dll \
   >"$TEMP/mcp-server.log" 2>&1 &

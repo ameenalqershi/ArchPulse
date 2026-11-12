@@ -104,6 +104,30 @@ public sealed class GraphTools
         catch (JsonException) { return Failure("Stored test links are malformed."); }
     }
 
+    [McpServerTool(Name = "archpulse_feature_scope", ReadOnly = true)]
+    [Description("Read operator-curated candidate feature membership and exact existing static graph edges. This does not prove business behavior, ownership, execution or coverage.")]
+    public static CallToolResult FeatureScope(
+        GraphSnapshotStore graphs, FeatureCatalogStore features,
+        string project, string revision, string featureId)
+    {
+        var graph = ReadValidated(graphs, project, revision);
+        if (graph is null) return Failure("No graph at the requested exact revision.");
+        if (string.IsNullOrWhiteSpace(featureId) || featureId.Length > 64)
+            return Failure("An exact bounded feature slug is required.");
+        try
+        {
+            var catalog = features.Load(graph);
+            if (catalog is null) return Failure("Feature catalog NotIndexed at this revision.");
+            var scope = FeatureAtlas.Project(graph, catalog, featureId);
+            if (scope.Nodes.Count > MaxUiNodes || scope.StaticEdges.Count > MaxUiEdges)
+                return Failure("Feature scope exceeds bounded local MCP response.");
+            return Success("Manual candidate feature membership, with static internal graph edges only; no observed execution.", scope);
+        }
+        catch (KeyNotFoundException) { return Failure("Unknown feature ID for this revision."); }
+        catch (InvalidDataException) { return Failure("Stored feature catalog failed validation."); }
+        catch (JsonException) { return Failure("Stored feature catalog is malformed."); }
+    }
+
     [McpServerTool(Name = "archpulse_guardian_check", ReadOnly = true)]
     [Description("Evaluate a proposed forbidden cross-project relation against the exact saved graph. This is not policy approval or enforcement.")]
     public static CallToolResult GuardianCheck(GraphSnapshotStore store, string project, string revision,

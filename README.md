@@ -4,13 +4,15 @@
 
 [العربية](README.ar.md) · [Contribute](CONTRIBUTING.md) · [Governance](GOVERNANCE.md) · [Architecture](docs/architecture/README.md) · [Roadmap](ROADMAP.md) · [Agent handoff](AGENTS.md)
 
-> This is an engineering foundation, **not a working architecture-visualization product**. No claimed live analysis, tracing, agent execution, or visual studio functionality is implemented at this stage. Green badges or feature-completeness claims must not be published before verified CI and acceptance evidence.
+> **Experimental partial platform, not a production-ready product.** The repository now contains tested local-only C# graph indexing, an immutable graph store, a read-only ASP.NET API, a React source-graph prototype, MCP Apps experiments, static test links and partial Test Journey receipts. These do **not** establish authenticated public access, runtime traces, feature completeness, or full S00–S33 acceptance. Do not publish green badges or capability-completeness claims without exact-revision CI and acceptance evidence.
 
 ## Why ArchPulse?
 
 Repository code, intended design, runtime traces, test results, and AI-agent decisions often tell different stories. ArchPulse is intended to make those differences navigable and explicit. Its planned **local-first .NET engine** will distinguish intended architecture (**designed**) from structure derived from code (**static**), execution evidence (**observed**), AI hypotheses (**inferred**), verified results, and uncertainty (**unknown**). The Web Studio is the primary planned interface; VS Code, CLI/SDK and MCP agents are adapters rather than mandatory engines.
 
-## Planned platform capabilities (not implemented)
+## Product roadmap (partially prototyped, not fully accepted)
+
+The table describes the **target** product. Implemented **partial** slices include S02/S03 Roslyn graph and persistence, S04 Guardian checks, S09/S27 local viewer, S29/S30 local MCP Apps, S31 static method-to-test links, S33 results-only/authorized local run receipts, and T023/S05 manually curated business feature catalogs. None of these is a completed production capability. See [FeatureAtlas reproducible workflow](docs/guides/feature-atlas-local.md).
 
 | Capability | Intended outcome | Source |
 | --- | --- | --- |
@@ -46,9 +48,9 @@ flowchart TB
 
 **Evidence contract:** Proposed diagrams do not show verified implementation. Missing telemetry must never be taken as proof that code did not execute. Test cases appear as badges or inspector entries, not as default standalone blocks on the main architecture canvas.
 
-## Foundation source code
+## Current implementation and verification
 
-The only source project in the foundation bundle is `engine/ArchPulse.Core`, containing a small illustrative **evidence-receipt contract** with tests. It does not implement the Knowledge Graph or any product module. This intentionally avoids empty placeholder projects and simulated features.
+The working .NET 10 solution includes `engine/ArchPulse.Graph`, `ArchPulse.Roslyn`, `ArchPulse.Guardian`, local ASP.NET/MCP read services, the CLI and offline validators, real tests and a React/TypeScript viewer. See [native CLI](docs/guides/dotnet-native-cli.md), [local Graph API](docs/guides/local-graph-api.md), [local MCP Apps](docs/guides/mcp-apps-local.md), and [FeatureAtlas](docs/guides/feature-atlas-local.md). Full product acceptance remains outstanding.
 
 ```bash
 dotnet restore ArchPulse.sln
@@ -56,7 +58,7 @@ dotnet build ArchPulse.sln --no-restore -c Release
 dotnet test ArchPulse.sln --no-build -c Release
 ```
 
-Requires .NET 10 SDK. These commands are prescribed but **not verified in the authoring environment**; see [verification report](docs/operations/FOUNDATION-VERIFICATION.md).
+Requires .NET 10 SDK. Locked restore, Release build and tests run in local development and CI. The exact commit and CI run must be inspected before treating any branch as verified; see [verification evidence](docs/operations/FOUNDATION-VERIFICATION.md) and [CI gates](docs/operations/CI-GATES.md).
 
 ## Start contributing
 
