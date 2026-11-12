@@ -64,3 +64,11 @@ source-backed graph JSON by exact project and revision from the
 loopback-only ASP.NET API and never makes up nodes or traces.
 Do not treat it as a fully accepted S09/S27 studio or remotely expose
 its unauthenticated local servers. See apps/web-studio/README.md.
+
+## Native .NET MCP Apps experiment
+
+The experimental stacked MCP branch contains server/ArchPulse.McpServer
+(5 read-only tools plus ui://archpulse/graph). Never expose or tunnel
+the unauthenticated 127.0.0.1:5231 endpoint. Do not claim that tests
+in an MCP Apps host simulator demonstrate ChatGPT product integration.
+See docs/guides/mcp-apps-local.md. Full S29/S30 acceptance pending.

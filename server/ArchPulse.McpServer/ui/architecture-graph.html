@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta name="color-scheme" content="light dark"/>
+<title>ArchPulse — Evidenced Architecture</title>
+<style>
+:root { font-family:system-ui,-apple-system,Segoe UI,sans-serif; --bg:#f5f7fb;--surface:#fff;--text:#182b41;--muted:#577087;--border:#cbd7e4;--accent:#145f90;--highlight:#e5f2fb; }
+@media(prefers-color-scheme:dark){:root{--bg:#111b29;--surface:#1b293b;--text:#eef5fb;--muted:#b3c4d6;--border:#344d62;--accent:#8dd0ff;--highlight:#253f54;}}
+*{box-sizing:border-box}body{margin:0;padding:12px;background:var(--bg);color:var(--text);font-size:13px}button,input{font:inherit}button{border:1px solid var(--border);background:var(--surface);color:var(--text);padding:7px 10px;border-radius:7px;cursor:pointer}button:focus-visible,input:focus-visible,svg:focus-visible{outline:3px solid var(--accent);outline-offset:2px}button:disabled{opacity:.55;cursor:not-allowed}.primary{background:#146291;color:#fff;border-color:#146291}.header{display:flex;justify-content:space-between;gap:12px;align-items:center}.header h1{font-size:19px;margin:0 0 3px;letter-spacing:-.035em}.sub{margin:0;color:var(--muted);font-size:11px}.tag{border:1px solid var(--border);padding:4px 7px;border-radius:20px;font-size:10px;color:var(--muted)}.inputs,.toolbar,.crumbs,.controls{display:flex;gap:7px;align-items:center;flex-wrap:wrap}.inputs{padding:11px;background:var(--surface);border-radius:10px;border:1px solid var(--border);margin:12px 0}.inputs label{flex:1;min-width:135px;font-size:10px;color:var(--muted);display:grid;gap:5px}.inputs input{padding:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:6px;width:100%}.message{margin:8px 0;padding:9px;border-radius:7px;color:var(--muted);background:var(--surface)}.error{border:1px solid #c97e7e;color:#ab3434}.crumbs{padding:8px 0}.crumbs button{border:0;background:transparent;padding:4px}.main{display:grid;grid-template-columns:minmax(0,1fr) minmax(210px,32%);gap:8px}.panel{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden}.toolbar{border-bottom:1px solid var(--border);padding:8px}.toolbar input{flex:1;min-width:80px;width:130px;padding:7px;border:1px solid var(--border);border-radius:6px;color:var(--text);background:var(--surface)}.scroll{height:450px;position:relative;overflow:hidden;touch-action:none;background:var(--bg)}.scroll svg{width:100%;height:100%;touch-action:none}.foot{border-top:1px solid var(--border);font-size:10px;padding:6px 10px;color:var(--muted)}.inspector{padding:12px;overflow:auto;max-height:535px}.inspector h2{font-size:15px;margin:3px 0 8px}.inspector dl{margin:10px 0}.inspector dt{color:var(--muted);font-size:10px;margin:11px 0 3px;text-transform:uppercase}.inspector dd{margin:0;overflow-wrap:anywhere;font-size:12px}.mono{font-family:ui-monospace,Consolas,monospace}.evidence-edge{padding:8px;background:var(--highlight);border:1px solid var(--border);border-radius:6px;margin:7px 0;font-size:11px;overflow-wrap:anywhere}.status{margin-top:8px;color:var(--muted);font-size:11px}.svg-node{cursor:pointer}.svg-node:focus{outline:3px solid var(--accent)}.diag{font-size:11px;color:var(--muted);margin:8px 0}details{margin-top:8px;font-size:11px}footer{margin-top:10px;color:var(--muted);font-size:10px}pre{white-space:pre-wrap;overflow-wrap:anywhere}
+@media(max-width:710px){.main{grid-template-columns:1fr}.scroll{height:380px}.inspector{max-height:350px}.header h1{font-size:16px}}
+</style>
+</head>
+<body>
+<div class="header"><div><h1>ArchPulse / Architecture Graph</h1><p class="sub">Source-derived C# graph · revision-locked · no invented runtime traces</p></div><span class="tag">Experimental MCP App</span></div>
+<div class="inputs" id="load-form"><label>Stored project <input id="project" required autocomplete="off" placeholder="Billing"/></label><label>Exact revision <input id="revision" required autocomplete="off" placeholder="Git/source revision"/></label><button class="primary" id="load-button" type="button">Load graph</button></div>
+<div class="message" id="status" role="status">Initializing MCP host bridge. A trusted, already-indexed local graph is required.</div>
+<div id="workspace" hidden>
+<div class="crumbs" id="breadcrumbs" aria-label="Graph hierarchy"></div>
+<div class="main">
+  <section class="panel" aria-label="Source-derived architecture graph">
+    <div class="toolbar">
+      <input id="search" type="search" placeholder="Exact symbol search" aria-label="Find a symbol"/>
+      <button id="find" type="button">Find</button>
+      <button id="up" type="button">Up</button>
+      <button id="zoom-out" type="button" aria-label="Zoom out">−</button>
+      <span id="zoom-label">100%</span>
+      <button id="zoom-in" type="button" aria-label="Zoom in">+</button>
+      <button id="reset" type="button">Reset</button>
+      <button id="mermaid" type="button">Copy Mermaid</button>
+    </div>
+    <div class="scroll"><svg id="diagram" viewBox="0 0 950 600" role="img" aria-label="Architecture graph canvas" tabindex="0"></svg></div>
+    <div class="foot" id="foot"></div>
+  </section>
+  <aside class="panel inspector" id="inspector" aria-label="Source and evidence inspector">
+    <h2>Select a symbol</h2><p class="sub">Exact source, revision, and known graph relations will appear here.</p>
+  </aside>
+</div>
+<details><summary>Source-indexer diagnostics (<span id="diagnostic-count">0</span>)</summary><ul id="diagnostics"></ul></details>
+</div>
+<footer>MCP Apps embed, not remote execution. Static means Roslyn source analysis; observed runtime evidence is not implied.</footer>
+<script>
+'use strict';
+(function () {
+  const ns = 'http://www.w3.org/2000/svg';
+  const $ = id => document.getElementById(id);
+  const state = { graph:null, scope:null, selected:null, zoom:1, panX:0, panY:0, drag:null,
+    requestId:0, pending:new Map(), initialized:false, boundOrigin:null, lastInput:null };
+  function status(message, failure) {
+    $('status').textContent = message;
+    $('status').className = failure ? 'message error' : 'message';
+  }
+  function el(tag, text, cls) {
+    const e=document.createElement(tag);
+    if (text !== undefined) e.textContent=String(text);
+    if(cls) e.className=cls;
+    return e;
+  }
+  function svg(tag, attrs, text) {
+    const e=document.createElementNS(ns,tag);
+    for(const [key,value] of Object.entries(attrs||{}))e.setAttribute(key,String(value));
+    if(text!==undefined)e.textContent=String(text);
+    return e;
+  }
+  function request(method, params) {
+    const id=++state.requestId;
+    const promise = new Promise((resolve,reject)=>{
+      state.pending.set(id,{resolve,reject});
+      // Avoid unbounded pending calls when an iframe host is absent.
+      if(state.pending.size>20){state.pending.delete(id);reject(new Error('MCP host response limit reached'));}
+    });
+    window.parent.postMessage({jsonrpc:'2.0',id,method,params:params||{}},!state.boundOrigin||state.boundOrigin==='null'?'*':state.boundOrigin);
+    return promise;
+  }
+  function notify(method,params) {
+    window.parent.postMessage({jsonrpc:'2.0',method,params:params||{}},!state.boundOrigin||state.boundOrigin==='null'?'*':state.boundOrigin);
+  }
+  function valid(g) {
+    return g && typeof g.project==='string' && typeof g.revision==='string' &&
+      Array.isArray(g.nodes) && Array.isArray(g.edges) && Array.isArray(g.diagnostics) &&
+      g.nodes.length<=5000 && g.edges.length<=10000 &&
+      g.nodes.every(n=>n && typeof n.symbolId==='string' && n.evidence && n.evidence.revision===g.revision) &&
+      g.edges.every(e=>e && typeof e.fromSymbolId==='string' && typeof e.toSymbolId==='string');
+  }
+  function updateGraph(g) {
+    if(!valid(g)){status('The host did not return a valid source-evidenced GraphSnapshot.',true);return;}
+    const root=g.nodes.find(n=>n.kind==='Solution'&&n.parentSymbolId===null)||
+      g.nodes.find(n=>n.parentSymbolId===null);
+    if(!root){status('Graph has no canonical root; cannot draw a trusted hierarchy.',true);return;}
+    state.graph=g;state.scope=root.symbolId;state.selected=null;state.panX=0;state.panY=0;state.zoom=1;
+    $('project').value=g.project;$('revision').value=g.revision;
+    $('workspace').hidden=false;
+    const ul=$('diagnostics');ul.replaceChildren();
+    g.diagnostics.forEach(line=>ul.appendChild(el('li',line)));
+    $('diagnostic-count').textContent=g.diagnostics.length;
+    status('Loaded '+g.nodes.length+' evidence-backed nodes and '+g.edges.length+
+      ' relations · exact revision '+g.revision+'.');
+    render();
+  }
+  async function load(project, revision) {
+    if(!state.initialized){status('Waiting for MCP host initialization.',true);return;}
+    if(!project||!revision){status('Both project and exact revision are required.',true);return;}
+    status('Requesting exact saved graph from the MCP host...');
+    try {
+      const response=await request('tools/call',{
+        name:'archpulse_graph_snapshot',arguments:{project,revision}
+      });
+      if(response && response.isError){
+        status((response.content||[]).map(c=>c.text||'').join(' ')||'Graph request failed.',true);return;
+      }
+      if(response && response.structuredContent)updateGraph(response.structuredContent);
+      else status('MCP tool returned no structured graph data.',true);
+    }catch(error){status('MCP tool error: '+String(error.message||error),true);}
+  }
+  function nodes(){return new Map((state.graph?.nodes||[]).map(n=>[n.symbolId,n]));}
+  function visible() {
+    const graph=state.graph, scope=state.scope;
+    const child=graph.nodes.filter(n=>n.parentSymbolId===scope);
+    return (child.length?child:graph.nodes.filter(n=>n.symbolId===scope))
+      .sort((a,b)=>a.symbolId.localeCompare(b.symbolId));
+  }
+  function findScope(id){if(!state.graph.nodes.some(n=>n.symbolId===id))return;
+    state.scope=id;state.selected=null;state.zoom=1;state.panX=0;state.panY=0;render();}
+  function select(id){state.selected=id;render();}
+  function trail() {
+    const result=[], m=nodes(),seen=new Set();let id=state.scope;
+    while(id&&m.has(id)&&!seen.has(id)){seen.add(id);result.unshift(m.get(id));id=m.get(id).parentSymbolId;}
+    return result;
+  }
+  function showInspector() {
+    const target=$('inspector');target.replaceChildren();
+    const n=nodes().get(state.selected);
+    if(!n){target.append(el('h2','Select a symbol'));target.append(el('p','Inspect exact Symbol ID and source evidence.','sub'));return;}
+    target.append(el('h2',n.label));
+    const dl=el('dl');
+    for(const [label,value] of [
+      ['Kind',n.kind],['Symbol ID',n.symbolId],['Revision',n.evidence.revision],
+      ['Evidence kind',n.evidence.kind],['Source file',n.evidence.relativeFile||'(root)'],
+      ['Line / Column',n.evidence.line+':'+n.evidence.column]]) {
+      dl.append(el('dt',label));
+      dl.append(el('dd',value,label==='Symbol ID'?'mono':''));
+    }
+    target.append(dl);
+    const edges=state.graph.edges.filter(e=>e.fromSymbolId===n.symbolId||e.toSymbolId===n.symbolId);
+    target.append(el('h2','Known relations ('+edges.length+')'));
+    for(const edge of edges.slice(0,50)) {
+      const item=el('div',undefined,'evidence-edge');
+      item.append(el('strong',edge.relation));
+      item.append(el('div',edge.fromSymbolId+' → '+edge.toSymbolId,'mono'));
+      item.append(el('div',edge.evidence.kind+' · '+edge.evidence.relativeFile+':'+edge.evidence.line));
+      target.append(item);
+    }
+    if(edges.length>50)target.append(el('p','More than 50 relations. Narrow to a smaller graph slice.'));
+    if(state.graph.nodes.some(child=>child.parentSymbolId===n.symbolId)){
+      const button=el('button','Drill into symbol');button.addEventListener('click',()=>findScope(n.symbolId));target.append(button);
+    }
+    target.append(el('p','Static source evidence is not a runtime execution trace.','sub'));
+  }
+  function render(){
+    if(!state.graph)return;
+    const m=nodes();
+    const tr=trail();
+    const bc=$('breadcrumbs');bc.replaceChildren();
+    tr.forEach((n,i)=>{
+      if(i)bc.append(el('span',' / '));
+      const b=el('button',n.label);b.type='button';b.title=n.symbolId;
+      b.addEventListener('click',()=>findScope(n.symbolId));bc.append(b);
+    });
+    const root=$('diagram');root.replaceChildren();
+    const bg=svg('rect',{width:950,height:600,fill:'transparent','data-background':'1'});root.append(bg);
+    const g=svg('g',{transform:'translate('+state.panX+' '+state.panY+') scale('+state.zoom+')'});root.append(g);
+    const vn=visible(),count=Math.min(60,vn.length),drawn=vn.slice(0,count),ids=new Set(drawn.map(n=>n.symbolId));
+    const columns=Math.max(1,Math.min(3,Math.ceil(Math.sqrt(count||1))));
+    const pos=new Map(drawn.map((n,i)=>[n.symbolId,{x:36+(i%columns)*290,y:35+Math.floor(i/columns)*150}]));
+    const lines=state.graph.edges.filter(e=>ids.has(e.fromSymbolId)&&ids.has(e.toSymbolId));
+    for(const edge of lines){
+      const a=pos.get(edge.fromSymbolId),b=pos.get(edge.toSymbolId);
+      if(!a||!b)continue;
+      g.append(svg('line',{x1:a.x+111,y1:a.y+84,x2:b.x+111,y2:b.y,
+        stroke:'#7693ae','stroke-width':2}));
+      g.append(svg('text',{x:(a.x+b.x)/2+111,y:(a.y+b.y)/2+45,'font-size':11,
+        'text-anchor':'middle',fill:'#5280a6'},edge.relation));
+    }
+    for(const n of drawn) {
+      const p=pos.get(n.symbolId),active=n.symbolId===state.selected,expand=state.graph.nodes.some(ch=>ch.parentSymbolId===n.symbolId);
+      const group=svg('g',{transform:'translate('+p.x+' '+p.y+')',tabindex:0,
+        role:'button','aria-label':n.kind+': '+n.label,'aria-pressed':active,'class':'svg-node'});
+      group.append(svg('rect',{width:223,height:85,rx:11,fill:active?'#d8ecfb':'#fff',
+        stroke:active?'#1b71a6':'#a6bdd0','stroke-width':active?3:1}));
+      group.append(svg('text',{x:12,y:23,'font-size':12,fill:'#35628d'},n.kind));
+      group.append(svg('text',{x:12,y:46,'font-size':14,'font-weight':600,fill:'#1c3146'},n.label.length>27?n.label.slice(0,25)+'…':n.label));
+      group.append(svg('text',{x:12,y:67,'font-size':10,fill:'#5d7488'},n.evidence.kind+(expand?' · double-click to drill':'')));
+      group.addEventListener('click',()=>select(n.symbolId));
+      group.addEventListener('dblclick',()=>{if(expand)findScope(n.symbolId);});
+      group.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();select(n.symbolId);}});
+      g.append(group);
+    }
+    $('zoom-label').textContent=Math.round(state.zoom*100)+'%';
+    $('up').disabled=!m.get(state.scope)?.parentSymbolId;
+    $('foot').textContent=vn.length+' nodes in scope ('+count+' rendered), '+lines.length+
+      ' local evidenced edges. Rev '+state.graph.revision+'.';
+    showInspector();
+  }
+  function mermaid() {
+    const vn=visible().slice(0,60).sort((a,b)=>a.symbolId.localeCompare(b.symbolId));
+    const mp=new Map(vn.map((n,i)=>[n.symbolId,'n'+i]));
+    const line=['flowchart TD'];
+    const escape=s=>String(s).replaceAll('\\','\\\\').replaceAll('"','\\"').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('\n',' ');
+    for(const n of vn)line.push('  '+mp.get(n.symbolId)+'["'+escape(n.label)+'"]');
+    for(const e of state.graph.edges)if(mp.has(e.fromSymbolId)&&mp.has(e.toSymbolId))
+      line.push('  '+mp.get(e.fromSymbolId)+' -->|'+escape(e.relation)+'| '+mp.get(e.toSymbolId));
+    line.push('%% Exact Symbol ID mapping for this revision');
+    for(const n of vn)line.push('%% '+mp.get(n.symbolId)+' = '+n.symbolId.replaceAll('\n',' '));
+    return line.join('\n');
+  }
+  window.addEventListener('message',event=>{
+    if(event.source!==window.parent)return;
+    if(state.boundOrigin!==null && event.origin!==state.boundOrigin)return;
+    const msg=event.data;if(!msg||msg.jsonrpc!=='2.0')return;
+    if(msg.id!==undefined && state.pending.has(msg.id)){
+      if(state.boundOrigin===null)state.boundOrigin=event.origin;
+      const p=state.pending.get(msg.id);state.pending.delete(msg.id);
+      msg.error?p.reject(new Error(msg.error.message||'MCP host error')):p.resolve(msg.result);
+      return;
+    }
+    if(msg.method==='ui/notifications/tool-input'){
+      const args=msg.params?.arguments||msg.params?.toolInput||{};
+      if(args.project&&args.revision){state.lastInput={project:args.project,revision:args.revision};
+        $('project').value=args.project;$('revision').value=args.revision;}
+    }
+    if(msg.method==='ui/notifications/tool-result'){
+      const r=msg.params||{};
+      if(r.structuredContent)updateGraph(r.structuredContent);
+      else if(r.isError)status((r.content||[]).map(c=>c.text||'').join(' ')||'Tool failed',true);
+    }
+  });
+  $('load-button').addEventListener('click',()=>{
+    void load($('project').value.trim(),$('revision').value.trim());
+  });
+  $('find').addEventListener('click',()=>{
+    if(!state.graph)return;
+    const needle=$('search').value.trim().toLocaleLowerCase();if(!needle)return;
+    const n=state.graph.nodes.find(n=>n.label.toLocaleLowerCase().includes(needle)||n.symbolId.toLocaleLowerCase().includes(needle));
+    if(!n){status('Exact graph has no matching symbol.',true);return;}
+    findScope(n.parentSymbolId||n.symbolId);select(n.symbolId);
+  });
+  $('up').addEventListener('click',()=>{const n=nodes().get(state.scope);if(n?.parentSymbolId)findScope(n.parentSymbolId);});
+  $('zoom-out').addEventListener('click',()=>{state.zoom=Math.max(.4,state.zoom-.15);render();});
+  $('zoom-in').addEventListener('click',()=>{state.zoom=Math.min(2.2,state.zoom+.15);render();});
+  $('reset').addEventListener('click',()=>{state.zoom=1;state.panX=0;state.panY=0;render();});
+  $('mermaid').addEventListener('click',async()=>{
+    if(!state.graph)return;
+    try {await navigator.clipboard.writeText(mermaid());status('Mermaid diagram copied (only source-backed in-scope nodes).');}
+    catch {status('Clipboard unavailable in this host sandbox.',true);}
+  });
+  const diagram=$('diagram');
+  diagram.addEventListener('pointerdown',e=>{
+    if(e.target!==diagram && e.target.getAttribute('data-background')!=='1')return;
+    state.drag={x:e.clientX,y:e.clientY,px:state.panX,py:state.panY};
+    diagram.setPointerCapture(e.pointerId);
+  });
+  diagram.addEventListener('pointermove',e=>{if(!state.drag)return;
+    state.panX=state.drag.px+e.clientX-state.drag.x;
+    state.panY=state.drag.py+e.clientY-state.drag.y;render();
+  });
+  diagram.addEventListener('pointerup',e=>{state.drag=null;if(diagram.hasPointerCapture(e.pointerId))diagram.releasePointerCapture(e.pointerId);});
+  diagram.addEventListener('pointercancel',()=>{state.drag=null;});
+  diagram.addEventListener('keydown',e=>{if(e.key==='Escape'){$('up').click();}});
+  (async()=>{
+    if(window.parent===window){status('An MCP Apps-capable host is required; no graph has been loaded.',true);return;}
+    try {
+      await request('ui/initialize',{protocolVersion:'2025-06-18',capabilities:{},clientInfo:{name:'archpulse-graph-ui',version:'0.1.0'}});
+      state.initialized=true;notify('ui/notifications/initialized',{});
+      status('MCP Apps host connected. Enter an exact stored project and revision.');
+      if(state.lastInput)void load(state.lastInput.project,state.lastInput.revision);
+    } catch(error){status('MCP Apps handshake failed: '+String(error.message||error),true);}
+  })();
+})();
+</script>
+</body>
+</html>
