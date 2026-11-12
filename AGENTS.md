@@ -135,3 +135,18 @@ and Git provenance, not the old script names.
 See docs/operations/PYTHON-TOOLING-RETIREMENT-2026-11-12.md for all
 retired filenames, exact replacement commands, historical exceptions,
 limitations and reproducible native verification.
+
+
+## S33 opt-in trusted local test process receipt
+
+Use the native TestJourney CLI `--capture tests/<suite>/<suite>.csproj
+--root . --output-dir <existing-empty-directory-outside-repo>
+--allow-local-execution` only for explicit local authorized trusted test
+projects after Release build. The command runs tests with the caller's OS
+privileges and is **not isolated or safe for untrusted source**.
+The receipt records clean Git HEAD checks, conventional DLL hash before/after,
+TRX SHA256, runner exit code and attempt-only outcomes. Do not claim actual
+test-binary provenance, test case/source identity, SUT call graph coverage or
+OpenTelemetry traces from these observations. No remote API/MCP execution
+entrypoint exists. See docs/guides/test-journey-trx-results.md and
+scripts/ci-local-test-run-capture.sh.
