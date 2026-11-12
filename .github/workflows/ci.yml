@@ -34,6 +34,8 @@ jobs:
         run: bash scripts/ci-mcp-protocol.sh
       - name: Native results-only TRX evidence smoke (S33 partial)
         run: bash scripts/ci-test-journey-results.sh
+      - name: Real TRX-to-Roslyn test declaration name candidates (S33 partial)
+        run: bash scripts/ci-trx-source-candidates.sh
       - name: Real-source static test associations and immutable sidecar smoke (S31 partial)
         run: bash scripts/ci-static-test-links.sh
       - name: Offline foundation validation - native .NET

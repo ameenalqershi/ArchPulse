@@ -87,8 +87,14 @@
           "xunit.extensibility.core": "[2.9.3]"
         }
       },
-      "archpulse.testjourney": {
+      "archpulse.graph": {
         "type": "Project"
+      },
+      "archpulse.testjourney": {
+        "type": "Project",
+        "dependencies": {
+          "ArchPulse.Graph": "[1.0.0, )"
+        }
       }
     }
   }

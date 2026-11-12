@@ -99,3 +99,18 @@ NotIndexed, Unmapped, MappedDirectStatic and Unknown test execution outcomes
 are distinct. No test runner/coverage/trace/authorization system is provided,
 and neither unauthenticated loopback service may be publicly exposed.
 See docs/guides/in-place-method-test-associations.md and optional local E2E.
+
+## TRX-to-Roslyn source declaration candidate matcher (S33 partial)
+
+The native offline ArchPulse.TestJourney --trx CLI optionally accepts
+--tested-sha, --graph-sha, --store and --project to compare sanitized runner
+class/method names to the existing, immutable Graph and StaticTestAssociation
+report. It does not execute code, test runners or APIs, and does not import
+untrusted assemblies or authenticate a TRX to a source revision. Report
+UniqueNameCandidateUnverified/ambiguous/missing/stale statuses separately.
+Every outcome is scoped to a TRX attempt, not to a SUT method or its Roslyn
+Calls edges. Preserve per-case retries and parameterized IDs. Never label a
+candidate as verified test case identity, observed coverage or runtime trace.
+See docs/guides/test-journey-trx-results.md and
+scripts/ci-trx-source-candidates.sh; future agent needs a secure provenance
+and test-runner attestation before any run-result UI or causal trace claims.
