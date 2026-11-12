@@ -24,11 +24,15 @@ jobs:
         uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73
         with:
           dotnet-version: 10.0.x
-      - name: Locked native traceability tooling restore
-        run: dotnet restore tooling/ArchPulse.TraceabilityValidator/ArchPulse.TraceabilityValidator.csproj --locked-mode
+      - name: Locked native tooling restore
+        run: |
+          dotnet restore tooling/ArchPulse.RepositoryValidator/ArchPulse.RepositoryValidator.csproj --locked-mode
+          dotnet restore tooling/ArchPulse.Tooling.Tests/ArchPulse.Tooling.Tests.csproj --locked-mode
+      - name: Build native validators and adversarial tests
+        run: dotnet build tooling/ArchPulse.Tooling.Tests/ArchPulse.Tooling.Tests.csproj -c Release --no-restore
       - name: Validate source traceability with native C#
-        run: dotnet run --project tooling/ArchPulse.TraceabilityValidator --no-restore -- --root .
-      - name: Verify ADR schema, status and narrative
-        run: python3 scripts/validate_adr.py
-      - name: Adversarial ADR contract tests
-        run: python3 -m unittest discover -s scripts -p 'test_adr_validator.py' -v
+        run: dotnet run --project tooling/ArchPulse.TraceabilityValidator -c Release --no-build -- --root .
+      - name: Verify ADR schema, lifecycle, receipts and narrative with native C#
+        run: dotnet run --project tooling/ArchPulse.RepositoryValidator -c Release --no-build -- --root . --adr
+      - name: Adversarial ADR contract tests in xUnit
+        run: dotnet test tooling/ArchPulse.Tooling.Tests/ArchPulse.Tooling.Tests.csproj -c Release --no-build --filter FullyQualifiedName~AdrValidationTests

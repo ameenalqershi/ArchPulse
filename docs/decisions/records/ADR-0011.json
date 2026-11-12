@@ -16,7 +16,7 @@
   },
   "affectedModules": [
     "docs/decisions",
-    "scripts/validate_adr.py"
+    "tooling/ArchPulse.RepositoryValidator/AdrChecker.cs"
   ],
   "alternatives": [
     {
@@ -61,7 +61,7 @@
   },
   "verification": {
     "tests": [
-      "python3 -m unittest scripts/test_adr_validator.py"
+      "dotnet test tooling/ArchPulse.Tooling.Tests --filter FullyQualifiedName~AdrValidationTests"
     ],
     "ciUrl": null,
     "graphImpact": "Decision metadata only; runtime evidence graph is not implemented."

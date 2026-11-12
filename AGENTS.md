@@ -12,7 +12,9 @@
 
 ## Commands and environment
 
-Requires .NET 10 SDK. `dotnet restore ArchPulse.sln --locked-mode`; `dotnet build ArchPulse.sln --no-restore -c Release`; `dotnet test ArchPulse.sln --no-build -c Release`. Use the canonical native validators: `dotnet run --project tooling/ArchPulse.RepositoryValidator` and `dotnet run --project tooling/ArchPulse.TraceabilityValidator`. For local NuGet metadata checks run `dotnet run --project tooling/ArchPulse.LicenseAudit -- --repo .`. Python governance scripts in scripts/ are legacy/optional, not the native core or primary CI. Do not infer license clearance or product completion from passing foundation checks.
+Requires .NET 10 SDK. `dotnet restore ArchPulse.sln --locked-mode`; `dotnet build ArchPulse.sln --no-restore -c Release`; `dotnet test ArchPulse.sln --no-build -c Release`. Use the canonical native validators: `dotnet run --project tooling/ArchPulse.RepositoryValidator` and `dotnet run --project tooling/ArchPulse.TraceabilityValidator`. For local NuGet metadata checks run `dotnet run --project tooling/ArchPulse.LicenseAudit -- --repo .`. The Python governance tools were retired. Native ADR, S25 handoff,
+S26 baseline and NuGet license validators are now the active C#/.NET gates.
+Historical checkpoint receipts may mention previously executed Python commands. Do not infer license clearance or product completion from passing foundation checks.
 
 ## Start/resume checklist
 
@@ -114,3 +116,22 @@ candidate as verified test case identity, observed coverage or runtime trace.
 See docs/guides/test-journey-trx-results.md and
 scripts/ci-trx-source-candidates.sh; future agent needs a secure provenance
 and test-runner attestation before any run-result UI or causal trace claims.
+
+
+## Native-only tools after Python retirement (2026-11-12)
+
+All remaining tracked Python tool scripts and their unittest sources were
+retired from the active tree. To run the extra gates use native .NET 10:
+RepositoryValidator --adr, RepositoryValidator --handoffs,
+TraceabilityValidator --baseline, the standard TraceabilityValidator and
+LicenseAudit. ADR checks are structural, never proof of a genuine human review.
+The S25 handoff validator does not authenticate remote external effects.
+The original optional Python requirement-manifest export CLI is not claimed
+as a feature-for-feature native replacement; full S31/S33 capabilities remain
+independent roadmap work. Use the Python retirement guide for exact commands
+and Git provenance, not the old script names.
+
+
+See docs/operations/PYTHON-TOOLING-RETIREMENT-2026-11-12.md for all
+retired filenames, exact replacement commands, historical exceptions,
+limitations and reproducible native verification.

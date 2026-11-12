@@ -1,32 +1,39 @@
 # S25 development-agent handoff validation coverage (T117)
 
-**Scope:** historical, public, source-controlled checkpoints used by development agents. This is **not** the runtime Cross-Agent Continuity feature (S11), a verified independent handoff (T118), or a secrets scanner guarantee.
+**Scope:** historical, public, source-controlled development-agent
+checkpoints. They are not authenticated real-time cross-agent continuity
+(S11), an independently verified takeover (T118) or a full secret scan.
 
-## Implementations, provenance and gaps
+## Active native C# checkers
 
-| Validator | Source | Checks | Currently in required Foundation CI? |
-| --- | --- | --- | --- |
-| Native .NET foundation | [HandoffChecker.cs](../../../tooling/ArchPulse.RepositoryValidator/HandoffChecker.cs) | Immutable foundation audit envelope, source IDs, schema fields, SHA shapes and known status | Yes, as part of the native repository validator |
-| PR #23 experimental Python validator | [validate_handoff.py](../../../scripts/validate_handoff.py) | Multiple JSON checkpoints, handoff v1 schema, safe paths, idempotency marker and common secret patterns | **No**; run separately |
-| PR #25 experimental Python validator | [validate_handoffs.py](../../../scripts/validate_handoffs.py) | Required field types, task-to-spec relations, SHA and canonical repository shape, relative paths, status/receipt consistency and selected key patterns | **No**; run separately |
+| Native component | Scope | CI usage |
+| --- | --- | --- |
+| [HandoffChecker.cs](../../../tooling/ArchPulse.RepositoryValidator/HandoffChecker.cs) | Fixed immutable foundation audit envelope, declared IDs and status | Built into Foundation RepositoryValidator |
+| [HandoffAllChecker.cs](../../../tooling/ArchPulse.RepositoryValidator/HandoffAllChecker.cs) | All committed S25 checkpoint JSON: v1 types, task/spec identity, SHA/branch, safe relative paths, effect idempotency, receipts, reconciliation and common secret signatures | Foundation CI checks --handoffs |
+| [NativeToolRetirementTests.cs](../../../tooling/ArchPulse.Tooling.Tests/NativeToolRetirementTests.cs) | Missing/forged fields, sensitive keys, duplicate effects, unknown states, unsafe paths, schema failures | Native xUnit tests in Foundation CI |
 
-The two Python implementations were independently proposed on the prior foundation and have **different coverage**. A successful run of either is not proof of cross-agent restoration. The long-term target is one tested **C#/.NET** validator covering their distinct security checks, with no duplicate Python build gate.
+The old PR #23 and PR #25 Python validator variants are preserved only
+in Git history, and no longer exist as active files. The tested C# validator
+includes an explicitly digest-bound waiver for a historical checkpoint whose
+record predates idempotency keys; this waiver is unavailable to any modified
+or new checkpoint. Passing native checks does not authenticate reported
+GitHub/Notion effects, test reports, or another agent's actual takeover.
 
-## Reproducible offline checks
+## Reproducible local verification
 
-Run from the repository root (no external AI service required):
+Run from a trusted checkout; Python and paid AI services are not required.
 
     dotnet restore ArchPulse.sln --locked-mode
-    dotnet run --project tooling/ArchPulse.RepositoryValidator
-    python3 scripts/validate_handoff.py
-    python3 scripts/validate_handoffs.py
-    python3 -m unittest discover -s scripts -p 'test_handoff_validator.py' -v
-    python3 -m unittest discover -s scripts -p 'test_handoff_validation.py' -v
+    dotnet build ArchPulse.sln -c Release --no-restore
+    dotnet run --project tooling/ArchPulse.RepositoryValidator -c Release --no-build -- --root . --handoffs
+    dotnet test tooling/ArchPulse.Tooling.Tests/ArchPulse.Tooling.Tests.csproj -c Release --no-build
 
-When a checkpoint validation fails, fix the checkpoint or validator contract with a reviewable commit. Never change immutable historical receipts to claim an external action happened. Use the [independent receiver rehearsal](REHEARSAL.md), [PR #23 sample](T117-2026-11-10.json) and [PR #25 sample](T117-PR25-2026-11-10.json) as proposed structural evidence, then **independently fetch** referenced GitHub/Notion state, CI and actual source SHA before describing recovery as successful.
+Failures must be addressed by a reviewable commit, not changing historical
+external-effect receipts to look successful. An independent receiving agent
+must inspect current GitHub source SHA, CI, PR state, Notion task and known
+blockers before describing an actual handoff as verified. See the
+[independent receiver rehearsal](REHEARSAL.md), [PR #23 historical sample](T117-2026-11-10.json) and [PR #25 historical sample](T117-PR25-2026-11-10.json).
 
-## Required native migration acceptance
-
-A follow-up C# migration must validate all committed candidate JSON files with explicit v1 structure, supported paths, canonical repository identity, task/spec relationships, bounded arrays, status/receipt consistency, and detectable credential patterns; use negative fixtures and deterministic CLI exit codes. Keep Unknown distinct from Verified. Avoid attributing an external side effect to any agent based solely on self-reported checkpoint text.
-
-**Current status:** S25 T117 remains *partially evidenced*; T118 is not complete merely because validator tests pass. No production authentication, sandbox or cross-agent runtime verification is provided by these scripts.
+**Current status:** S25/T117 is partially evidenced. T118 and S11 runtime
+continuity remain unverified; this offline validator cannot impersonate
+human oversight or authorize remote operations.

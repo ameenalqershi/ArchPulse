@@ -38,6 +38,10 @@ jobs:
         run: bash scripts/ci-trx-source-candidates.sh
       - name: Real-source static test associations and immutable sidecar smoke (S31 partial)
         run: bash scripts/ci-static-test-links.sh
+      - name: Native S26 requirement baseline lock and proposed scope validation
+        run: dotnet run --project tooling/ArchPulse.TraceabilityValidator --no-build --configuration Release -- --root . --baseline
+      - name: Native S25 all-agent-handoff checkpoint and secret hygiene validation
+        run: dotnet run --project tooling/ArchPulse.RepositoryValidator --no-build --configuration Release -- --root . --handoffs
       - name: Offline foundation validation - native .NET
         run: dotnet run --project tooling/ArchPulse.RepositoryValidator --no-build --configuration Release
       - name: Offline S/T/R traceability validation - native .NET
@@ -63,6 +67,17 @@ jobs:
         run: dotnet build tooling/ArchPulse.RepositoryValidator/ArchPulse.RepositoryValidator.csproj --no-restore --configuration Release
       - name: Repository and handoff contracts
         run: dotnet run --project tooling/ArchPulse.RepositoryValidator --no-build --configuration Release
+      - name: All handoffs and immutable S26 requirements snapshot
+        run: |
+          dotnet run --project tooling/ArchPulse.RepositoryValidator --no-build --configuration Release -- --root . --handoffs
+          dotnet run --project tooling/ArchPulse.TraceabilityValidator --no-build --configuration Release -- --root . --baseline
+      - name: Assert remaining Python tools are retired
+        run: |
+          if [ -n "$(git ls-files '*.py')" ]; then
+            echo "Python tooling remains tracked after native retirement." >&2
+            git ls-files '*.py'
+            exit 1
+          fi
       - name: Traceability contracts
         run: dotnet run --project tooling/ArchPulse.TraceabilityValidator --no-build --configuration Release
   web-studio-build-test:

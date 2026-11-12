@@ -24,7 +24,7 @@ flowchart LR
 
 ## Record contract and compatibility
 
-The machine-readable source is `docs/decisions/records/ADR-NNNN.json` using [adr-v1.schema.json](adr-v1.schema.json). Its `document` references the readable Markdown ADR, and `alternatives[].mermaid` must be identical to a fenced Mermaid diagram in that Markdown. `scripts/validate_adr.py` checks schema-like shape and cross-record invariants without paid APIs or extra Python packages. The JSON Schema permits external tooling to check structural constraints; the Python validator enforces additional status transitions and references.
+The machine-readable source is `docs/decisions/records/ADR-NNNN.json` using [adr-v1.schema.json](adr-v1.schema.json). Its `document` references the readable Markdown ADR, and `alternatives[].mermaid` must be identical to a fenced Mermaid diagram in that Markdown. `tooling/ArchPulse.RepositoryValidator/AdrChecker.cs` checks record structure, task links, lifecycle constraints, receipt syntax and Mermaid narrative consistency offline with .NET. The JSON Schema remains available to external tooling. The validator never authenticates actual GitHub reviews.
 
 Older Markdown-only proposals, such as a proposed ADR-0001 in T002, remain **unapproved proposals**. They are not automatically migrated, approved, or silently renumbered. Before an older proposal may be accepted, supply a conforming record and complete the human review; coordinate filenames with its owner.
 
@@ -38,16 +38,21 @@ Older Markdown-only proposals, such as a proposed ADR-0001 in T002, remain **una
 
 ## Agent recovery procedure
 
-An independent receiver can clone the repo without chat history, read [S22](https://app.notion.com/p/4143830ba34d81a68732f75f600f214c), this document, the JSON schema, the `records/` directory and linked Markdown, and run:
+An independent agent reads S22, the ADR JSON schema and records, and executes
+the native validators in an authorized trusted checkout:
 
 ```bash
-python3 scripts/validate_adr.py
-python3 -m unittest scripts/test_adr_validator.py -v
-python3 scripts/validate_traceability.py
+dotnet restore ArchPulse.sln --locked-mode
+dotnet build ArchPulse.sln -c Release --no-restore
+dotnet run --project tooling/ArchPulse.RepositoryValidator -c Release --no-build -- --root . --adr
+dotnet test tooling/ArchPulse.Tooling.Tests/ArchPulse.Tooling.Tests.csproj -c Release --no-build --filter FullyQualifiedName~AdrValidationTests
+dotnet run --project tooling/ArchPulse.TraceabilityValidator -c Release --no-build -- --root .
 ```
 
-The receiver should report source SHA, ADR IDs and statuses, pending review gates, validation output, and whether GitHub CI passed for that exact SHA. This is a *procedure*, not evidence that two independent AI agents completed a rehearsal.
+The receiver independently verifies source SHA, ADR status, human approvals
+and hosted CI on that exact revision. Contract checks alone do not prove a
+reviewer authorized a decision or cross-agent takeover succeeded.
 
 ## Known limitations
 
-The stdlib validator checks Mermaid block presence, approved diagram prefixes and exact JSON/Markdown matches; it is **not a full Mermaid grammar parser**, renderer or semantic proof. Rendering and security judgment remain human review responsibilities. CI's approval receipt checks syntax and links, not authenticity or the reviewer's identity. A transition audit must additionally compare Git history; `validate_adr.py` only validates a snapshot.
+The native C# validator checks Mermaid block presence, approved diagram prefixes and exact JSON/Markdown matches; it is **not a full Mermaid grammar parser**, renderer or semantic proof. Rendering and security judgment remain human review responsibilities. CI's approval receipt checks syntax and links, not authenticity or the reviewer's identity. A transition audit must additionally compare Git history; `validate_adr.py` only validates a snapshot.
