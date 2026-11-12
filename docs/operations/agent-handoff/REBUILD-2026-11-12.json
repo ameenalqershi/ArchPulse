@@ -1,0 +1,61 @@
+{
+  "schema": "archpulse-agent-handoff/v1",
+  "taskId": "T005",
+  "specification": "S01",
+  "status": "in-progress",
+  "repository": "https://github.com/ameenalqershi/ArchPulse",
+  "branch": "rebuild/dotnet-native-foundation-20261112",
+  "baseCommit": "6602183884bfb7b6dcd24803fb1d5db1ccdc28db",
+  "workingCommit": null,
+  "lastVerifiedAction": "2026-11-12: local Git backup verified; isolated native C# implementation and deterministic checks run; publication/CI pending.",
+  "completedSteps": [
+    "Read Notion S00-S33, all Proposed",
+    "Inspect repository, ruleset, branches, PRs, CI and backup Git refs with complete verified bundle",
+    "Implement native .NET validators and regression tests",
+    "Implement Roslyn semantic indexer, Graph, Guardian, CLI, static graph API and React Flow Web Studio",
+    "Index clean main SHA baseline to 24 nodes and 28 edges with one unknown",
+    "Historical Python baseline comparison 16 tests passed",
+    "Local .NET component tests, Vite production build and API smoke run"
+  ],
+  "unverifiedSteps": [
+    "GitHub PR head CI",
+    "Full S00-S33 product acceptance and security review",
+    "MCP Apps and browser E2E test",
+    "Full current Notion task count due to query quota",
+    "All-runtime call completeness"
+  ],
+  "changedFiles": [
+    "ArchPulse.sln", "tooling/", "tests/", "engine/ArchPulse.Graph/",
+    "engine/ArchPulse.Roslyn/", "engine/ArchPulse.Guardian/", "server/ArchPulse.Server/",
+    "apps/cli/", "apps/web-studio/", ".github/workflows/ci.yml",
+    "docs/operations/REBUILD-STATUS-2026-11-12.md", "AGENTS.md"
+  ],
+  "testResults": [
+    "Core: 4 passed; Tooling: 13 passed; Roslyn: 3 passed; Guardian: 5 passed; Server: 3 passed",
+    "Web Studio Vite build passed",
+    "HTTP graph and Mermaid API responded successfully",
+    "Published head CI not yet verified"
+  ],
+  "pullRequests": [],
+  "externalEffects": [
+    "Created independent worktree and backup, main left unchanged",
+    "Temporary loopback web/API processes; no external deployment",
+    "Notion read only"
+  ],
+  "knownBlockers": [
+    "Notion data-source query usage limit reached",
+    "Index of baseline has one unresolved static call",
+    "PR head CI pending"
+  ],
+  "risks": [
+    "No full sandbox or RBAC; server loopback-only",
+    "Do not delete Python before new native CI passes",
+    "Notion requirements remain Proposed"
+  ],
+  "nextSafeAction": "Verify locked build and all tests; publish draft PR; confirm native GitHub CI; only then retire Python scripts and update historical instructions.",
+  "requiredCapabilities": [
+    "Remote Desktop Commander with .NET and Node",
+    "GitHub PR and Actions integration",
+    "Notion requirements access"
+  ]
+}
