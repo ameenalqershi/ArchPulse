@@ -6,8 +6,10 @@ The source index is [Notion S26](https://app.notion.com/p/4143830ba34d8185a0edc8
 
 ## Free/offline commands
 
-Run from repository root with Python 3 (no packages or AI subscriptions required):
+Run from repository root with **.NET 10 SDK and Python 3**. The small Python export adapter now **invokes the native C# traceability validator** and fails closed if that dependency is unavailable; it does not restore the removed Python validator. Restore the already-pinned .NET dependencies once (no paid AI service is required):
 
+    dotnet restore ArchPulse.sln --locked-mode
+    dotnet run --project tooling/ArchPulse.TraceabilityValidator --no-restore
     python3 scripts/requirement_registry.py
     python3 scripts/requirement_registry.py --requirement R-VGOV-015
     python3 scripts/requirement_registry.py --json > /tmp/archpulse-requirements.json
@@ -27,4 +29,4 @@ The generated payload conforms to the public [registry schema](requirements-regi
 
 The export must fail closed when the stable ID lock or task graph is inconsistent; it must not silently repair source records. Changes to the owner-specification crosswalk, scope classification, source data, or JSON contract require a separate review against the latest Notion S00/S26, and an ADR when the contract becomes public/consumed. Do not auto-update the lock merely to appease CI. Changing counts in the source requires explicit source/acceptance review.
 
-This v1 CLI enables tools and agents to inspect planned data. **Not completed:** semantic completeness of S00–S33, formal approval of all requirement-to-owner mappings, live Notion synchronization, actual acceptance-test receipts, deployment gates or the ArchPulse product itself. Parent T001 remains open until all of those applicable acceptance conditions have real evidence.
+This v1 CLI enables tools and agents to inspect planned data. The Python exporter is a transitional offline compatibility tool; C#/.NET is the canonical platform, and native registry export remains future engineering work. **Not completed:** semantic completeness of S00–S33, formal approval of all requirement-to-owner mappings, live Notion synchronization, actual acceptance-test receipts, deployment gates or the ArchPulse product itself. Parent T001 remains open until all of those applicable acceptance conditions have real evidence.
