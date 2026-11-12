@@ -8,7 +8,7 @@
 <style>
 :root { font-family:system-ui,-apple-system,Segoe UI,sans-serif; --bg:#f5f7fb;--surface:#fff;--text:#182b41;--muted:#577087;--border:#cbd7e4;--accent:#145f90;--highlight:#e5f2fb; }
 @media(prefers-color-scheme:dark){:root{--bg:#111b29;--surface:#1b293b;--text:#eef5fb;--muted:#b3c4d6;--border:#344d62;--accent:#8dd0ff;--highlight:#253f54;}}
-*{box-sizing:border-box}body{margin:0;padding:12px;background:var(--bg);color:var(--text);font-size:13px}button,input{font:inherit}button{border:1px solid var(--border);background:var(--surface);color:var(--text);padding:7px 10px;border-radius:7px;cursor:pointer}button:focus-visible,input:focus-visible,svg:focus-visible{outline:3px solid var(--accent);outline-offset:2px}button:disabled{opacity:.55;cursor:not-allowed}.primary{background:#146291;color:#fff;border-color:#146291}.header{display:flex;justify-content:space-between;gap:12px;align-items:center}.header h1{font-size:19px;margin:0 0 3px;letter-spacing:-.035em}.sub{margin:0;color:var(--muted);font-size:11px}.tag{border:1px solid var(--border);padding:4px 7px;border-radius:20px;font-size:10px;color:var(--muted)}.inputs,.toolbar,.crumbs,.controls{display:flex;gap:7px;align-items:center;flex-wrap:wrap}.inputs{padding:11px;background:var(--surface);border-radius:10px;border:1px solid var(--border);margin:12px 0}.inputs label{flex:1;min-width:135px;font-size:10px;color:var(--muted);display:grid;gap:5px}.inputs input{padding:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:6px;width:100%}.message{margin:8px 0;padding:9px;border-radius:7px;color:var(--muted);background:var(--surface)}.error{border:1px solid #c97e7e;color:#ab3434}.crumbs{padding:8px 0}.crumbs button{border:0;background:transparent;padding:4px}.main{display:grid;grid-template-columns:minmax(0,1fr) minmax(210px,32%);gap:8px}.panel{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden}.toolbar{border-bottom:1px solid var(--border);padding:8px}.toolbar input{flex:1;min-width:80px;width:130px;padding:7px;border:1px solid var(--border);border-radius:6px;color:var(--text);background:var(--surface)}.scroll{height:450px;position:relative;overflow:hidden;touch-action:none;background:var(--bg)}.scroll svg{width:100%;height:100%;touch-action:none}.foot{border-top:1px solid var(--border);font-size:10px;padding:6px 10px;color:var(--muted)}.inspector{padding:12px;overflow:auto;max-height:535px}.inspector h2{font-size:15px;margin:3px 0 8px}.inspector dl{margin:10px 0}.inspector dt{color:var(--muted);font-size:10px;margin:11px 0 3px;text-transform:uppercase}.inspector dd{margin:0;overflow-wrap:anywhere;font-size:12px}.mono{font-family:ui-monospace,Consolas,monospace}.evidence-edge{padding:8px;background:var(--highlight);border:1px solid var(--border);border-radius:6px;margin:7px 0;font-size:11px;overflow-wrap:anywhere}.status{margin-top:8px;color:var(--muted);font-size:11px}.svg-node{cursor:pointer}.svg-node:focus{outline:3px solid var(--accent)}.diag{font-size:11px;color:var(--muted);margin:8px 0}details{margin-top:8px;font-size:11px}footer{margin-top:10px;color:var(--muted);font-size:10px}pre{white-space:pre-wrap;overflow-wrap:anywhere}
+*{box-sizing:border-box}body{margin:0;padding:12px;background:var(--bg);color:var(--text);font-size:13px}button,input{font:inherit}button{border:1px solid var(--border);background:var(--surface);color:var(--text);padding:7px 10px;border-radius:7px;cursor:pointer}button:focus-visible,input:focus-visible,svg:focus-visible{outline:3px solid var(--accent);outline-offset:2px}button:disabled{opacity:.55;cursor:not-allowed}.primary{background:#146291;color:#fff;border-color:#146291}.header{display:flex;justify-content:space-between;gap:12px;align-items:center}.header h1{font-size:19px;margin:0 0 3px;letter-spacing:-.035em}.sub{margin:0;color:var(--muted);font-size:11px}.tag{border:1px solid var(--border);padding:4px 7px;border-radius:20px;font-size:10px;color:var(--muted)}.inputs,.toolbar,.crumbs,.controls{display:flex;gap:7px;align-items:center;flex-wrap:wrap}.inputs{padding:11px;background:var(--surface);border-radius:10px;border:1px solid var(--border);margin:12px 0}.inputs label{flex:1;min-width:135px;font-size:10px;color:var(--muted);display:grid;gap:5px}.inputs input{padding:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:6px;width:100%}.message{margin:8px 0;padding:9px;border-radius:7px;color:var(--muted);background:var(--surface)}.error{border:1px solid #c97e7e;color:#ab3434}.crumbs{padding:8px 0}.crumbs button{border:0;background:transparent;padding:4px}.main{display:grid;grid-template-columns:minmax(0,1fr) minmax(210px,32%);gap:8px}.panel{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden}.toolbar{border-bottom:1px solid var(--border);padding:8px}.toolbar input{flex:1;min-width:80px;width:130px;padding:7px;border:1px solid var(--border);border-radius:6px;color:var(--text);background:var(--surface)}.scroll{height:450px;position:relative;overflow:hidden;touch-action:none;background:var(--bg)}.scroll svg{width:100%;height:100%;touch-action:none}.foot{border-top:1px solid var(--border);font-size:10px;padding:6px 10px;color:var(--muted)}.inspector{padding:12px;overflow:auto;max-height:535px}.inspector h2{font-size:15px;margin:3px 0 8px}.inspector dl{margin:10px 0}.inspector dt{color:var(--muted);font-size:10px;margin:11px 0 3px;text-transform:uppercase}.inspector dd{margin:0;overflow-wrap:anywhere;font-size:12px}.mono{font-family:ui-monospace,Consolas,monospace}.evidence-edge{padding:8px;background:var(--highlight);border:1px solid var(--border);border-radius:6px;margin:7px 0;font-size:11px;overflow-wrap:anywhere}.status{margin-top:8px;color:var(--muted);font-size:11px}.test-links-panel{padding:9px;border:1px solid var(--border);background:var(--highlight);border-radius:8px;margin:12px 0}.test-links-panel h3{font-size:13px;margin:0 0 8px}.test-links-panel .test-entry{padding:7px;background:var(--surface);border:1px solid var(--border);border-radius:6px;margin:6px 0;overflow-wrap:anywhere}.test-links-panel small{display:block;color:var(--muted);margin:4px 0}.svg-node{cursor:pointer}.svg-node:focus{outline:3px solid var(--accent)}.diag{font-size:11px;color:var(--muted);margin:8px 0}details{margin-top:8px;font-size:11px}footer{margin-top:10px;color:var(--muted);font-size:10px}pre{white-space:pre-wrap;overflow-wrap:anywhere}
 @media(max-width:710px){.main{grid-template-columns:1fr}.scroll{height:380px}.inspector{max-height:350px}.header h1{font-size:16px}}
 </style>
 </head>
@@ -46,7 +46,8 @@
   const ns = 'http://www.w3.org/2000/svg';
   const $ = id => document.getElementById(id);
   const state = { graph:null, scope:null, selected:null, zoom:1, panX:0, panY:0, drag:null,
-    requestId:0, pending:new Map(), initialized:false, boundOrigin:null, lastInput:null };
+    requestId:0, pending:new Map(), initialized:false, boundOrigin:null, lastInput:null,
+    linkCache:new Map(), linkPending:new Set(), graphEpoch:0 };
   function status(message, failure) {
     $('status').textContent = message;
     $('status').className = failure ? 'message error' : 'message';
@@ -89,6 +90,7 @@
       g.nodes.find(n=>n.parentSymbolId===null);
     if(!root){status('Graph has no canonical root; cannot draw a trusted hierarchy.',true);return;}
     state.graph=g;state.scope=root.symbolId;state.selected=null;state.panX=0;state.panY=0;state.zoom=1;
+    state.graphEpoch++;state.linkCache.clear();state.linkPending.clear();
     $('project').value=g.project;$('revision').value=g.revision;
     $('workspace').hidden=false;
     const ul=$('diagnostics');ul.replaceChildren();
@@ -128,6 +130,76 @@
     while(id&&m.has(id)&&!seen.has(id)){seen.add(id);result.unshift(m.get(id));id=m.get(id).parentSymbolId;}
     return result;
   }
+  function validLinkSelection(r, n) {
+    return r && r.schema==='archpulse.method-test-selection/v1' &&
+      r.project===state.graph?.project && r.revision===state.graph?.revision &&
+      r.targetSymbolId===n.symbolId &&
+      ['NotIndexed','Unmapped','MappedDirectStatic'].includes(r.mappingStatus) &&
+      r.mappingScope==='RoslynStaticDirectOnly' &&
+      r.runnerDiscovery==='NotRunnerDiscovered' &&
+      r.executionStatus==='Unknown' && r.observedCoverage===false &&
+      Array.isArray(r.links) && r.links.length<=50000 &&
+      (r.mappingStatus==='MappedDirectStatic')===(r.links.length>0) &&
+      r.links.every(x=>x && x.targetSymbolId===n.symbolId &&
+        ['xUnit','NUnit','MSTest'].includes(x.framework) &&
+        x.relation==='DirectInvocation' && x.verification==='StaticSourceOnly' &&
+        x.executionEvidence==='Unobserved' && x.lastResult==='Unknown' &&
+        typeof x.testMethodSymbolId==='string' &&
+        Array.isArray(x.callSites) && x.callSites.length>0 && x.callSites.length<=1000 &&
+        x.callSites.every(s=>s && s.kind==='Static' && s.revision===state.graph.revision &&
+          typeof s.relativeFile==='string' && Number.isInteger(s.line) && s.line>0 &&
+          Number.isInteger(s.column) && s.column>0));
+  }
+  function showMethodTests(target, n) {
+    if(n.kind!=='Method')return;
+    const box=el('section',undefined,'test-links-panel');box.setAttribute('aria-label','Method tests');
+    box.append(el('h3','Tests · static source evidence'));target.append(box);
+    const key=state.graph.project+'\0'+state.graph.revision+'\0'+n.symbolId;
+    if(state.linkCache.has(key)) {
+      const r=state.linkCache.get(key);
+      if(!r || r.error) {
+        box.append(el('p','Test links unavailable; no result inferred. '+(r?.error||''),'status'));
+      } else if(r.mappingStatus==='NotIndexed') {
+        box.append(el('p','Test links not indexed for this exact revision.','status'));
+      } else if(r.mappingStatus==='Unmapped') {
+        box.append(el('p','No direct static test links mapped. Not zero coverage.','status'));
+      } else {
+        box.append(el('p',r.links.length+' direct static test links; not run, coverage unobserved.','status'));
+        for(const link of r.links.slice(0,100)) {
+          const item=el('div',undefined,'test-entry');
+          item.append(el('strong',link.testMethodSymbolId,'mono'));
+          item.append(el('small',link.framework+' · DirectInvocation · StaticSourceOnly'));
+          item.append(el('small','Not run · Unobserved · Runner case unverified'));
+          for(const site of link.callSites.slice(0,5))
+            item.append(el('small',site.relativeFile+':'+site.line+':'+site.column+' · Static'));
+          box.append(item);
+        }
+        if(r.links.length>100)box.append(el('p','More links omitted from this panel.','status'));
+      }
+    } else {
+      box.append(el('p','Loading test associations from MCP host...','status'));
+      if(!state.linkPending.has(key)) {
+        state.linkPending.add(key);
+        const epoch=state.graphEpoch;
+        const project=state.graph.project,revision=state.graph.revision,id=n.symbolId;
+        void request('tools/call',{name:'archpulse_linked_tests',
+          arguments:{project,revision,symbolId:id}}).then(result=>{
+          if(epoch!==state.graphEpoch)return;
+          const r=result?.structuredContent;
+          state.linkCache.set(key,!result?.isError && validLinkSelection(r,n) ?
+            r : {error:'MCP returned no trustworthy source-only mapping.'});
+        }).catch(()=>{
+          if(epoch===state.graphEpoch)state.linkCache.set(key,
+            {error:'MCP test-link request failed.'});
+        }).finally(()=>{
+          if(epoch!==state.graphEpoch)return;
+          state.linkPending.delete(key);
+          if(state.selected===id)showInspector();
+        });
+      }
+    }
+    box.append(el('p','Test metadata is not runner-discovered cases or observed method execution.','sub'));
+  }
   function showInspector() {
     const target=$('inspector');target.replaceChildren();
     const n=nodes().get(state.selected);
@@ -152,6 +224,7 @@
       target.append(item);
     }
     if(edges.length>50)target.append(el('p','More than 50 relations. Narrow to a smaller graph slice.'));
+    showMethodTests(target,n);
     if(state.graph.nodes.some(child=>child.parentSymbolId===n.symbolId)){
       const button=el('button','Drill into symbol');button.addEventListener('click',()=>findScope(n.symbolId));target.append(button);
     }

@@ -8,6 +8,7 @@ const htmlFile = path.resolve(process.cwd(),
 const html = fs.readFileSync(htmlFile, 'utf8');
 
 const goldenGraphPath = process.env.ARCHPULSE_MCP_GRAPH_JSON;
+const goldenLinksPath = process.env.ARCHPULSE_MCP_LINKS_JSON;
 // When the native .NET CLI has produced its actual graph, use it.
 // Otherwise the host simulator uses a small explicitly labeled contract fixture;
 // this is never a user-facing fallback in the app itself.
@@ -40,9 +41,13 @@ const fixture = goldenGraphPath && fs.existsSync(goldenGraphPath)
     diagnostics: []
   };
 
+const liveLinks = goldenLinksPath && fs.existsSync(goldenLinksPath)
+  ? camelizeGraph(JSON.parse(fs.readFileSync(goldenLinksPath, 'utf8'))) as Record<string, unknown>
+  : null;
+
 async function mountHost(page: import('@playwright/test').Page, data: Record<string, unknown>) {
   await page.goto('about:blank');
-  await page.evaluate(({ html, data }) => {
+  await page.evaluate(({ html, data, liveLinks }) => {
     const tracker = { names: [] as string[] };
     Object.assign(window, { __mcpHostTracker: tracker });
     window.addEventListener('message', event => {
@@ -56,12 +61,26 @@ async function mountHost(page: import('@playwright/test').Page, data: Record<str
         }, '*');
       } else if (msg.method === 'tools/call') {
         tracker.names.push(msg.params?.name ?? '');
+        const args = msg.params?.arguments ?? {};
+        const isLinks = msg.params?.name === 'archpulse_linked_tests';
+        const staticLinks = liveLinks && Array.isArray(liveLinks.associations)
+          ? liveLinks.associations.filter((link: { targetSymbolId?: string }) =>
+              link.targetSymbolId === args.symbolId)
+          : [];
+        const selection = {
+          schema: 'archpulse.method-test-selection/v1',
+          project: data.project, revision: data.revision, targetSymbolId: args.symbolId,
+          mappingStatus: liveLinks ? (staticLinks.length ? 'MappedDirectStatic' : 'Unmapped') : 'NotIndexed',
+          mappingScope: 'RoslynStaticDirectOnly',
+          runnerDiscovery: 'NotRunnerDiscovered', executionStatus: 'Unknown',
+          observedCoverage: false, links: staticLinks
+        };
         (event.source as Window).postMessage({
           jsonrpc: '2.0', id: msg.id, result:
-            msg.params?.arguments?.revision === 'unknown-version'
+            args.revision === 'unknown-version'
               ? { isError: true, content: [{ type: 'text', text: 'No stored graph.' }] }
-              : { isError: false, content: [{ type: 'text', text: 'Contract fixture' }],
-                  structuredContent: data }
+              : { isError: false, content: [{ type: 'text', text: 'Source evidence fixture' }],
+                  structuredContent: isLinks ? selection : data }
         }, '*');
       }
     });
@@ -70,7 +89,7 @@ async function mountHost(page: import('@playwright/test').Page, data: Record<str
     iframe.setAttribute('style', 'border:0;width:100%;height:820px');
     iframe.srcdoc = html;
     document.body.appendChild(iframe);
-  }, { html, data });
+  }, { html, data, liveLinks });
   const app = page.frameLocator('iframe');
   await expect(app.getByRole('status')).toContainText('MCP Apps host connected');
   return app;
@@ -99,7 +118,9 @@ test('MCP Apps host bridge renders actual tool structured content and supports d
   const calls = await page.evaluate(() => (window as unknown as {
     __mcpHostTracker: { names: string[] }
   }).__mcpHostTracker.names);
-  expect(calls).toEqual(['archpulse_graph_snapshot']);
+  expect(calls[0]).toBe('archpulse_graph_snapshot');
+  expect(calls.every(name =>
+    name === 'archpulse_graph_snapshot' || name === 'archpulse_linked_tests')).toBe(true);
 });
 
 test('MCP App rejects missing graph and does not invent edges or nodes', async ({ page }) => {
@@ -119,4 +140,38 @@ test('MCP App is navigable on a narrow mobile iframe', async ({ page }) => {
   await app.getByRole('button', { name: 'Load graph' }).click();
   await expect(app.getByRole('button', { name: 'Copy Mermaid' })).toBeVisible();
   await expect(app.getByRole('img', { name: 'Architecture graph canvas' })).toBeVisible();
+});
+
+// In the real CLI-fixture mode the "links" report is computed from Roslyn, not
+// crafted by this test. Without a source report, the host explicitly returns
+// NotIndexed rather than fabricating tests or treating unknown as no coverage.
+test('MCP inspector queries exact selected method and keeps results static-only', async ({ page }) => {
+  const app = await mountHost(page, fixture);
+  await app.getByLabel('Stored project').fill(String(fixture.project));
+  await app.getByLabel('Exact revision').fill(String(fixture.revision));
+  await app.getByRole('button', { name: 'Load graph' }).click();
+  await expect(app.getByRole('status')).toContainText('evidence-backed nodes');
+  const nodes = fixture.nodes as Array<{ symbolId: string; kind: string }>;
+  const associations = (liveLinks?.associations ?? []) as Array<{ targetSymbolId: string }>;
+  const chosen = nodes.find(n => n.kind === 'Method' &&
+    associations.some(a => a.targetSymbolId === n.symbolId)) ??
+    nodes.find(n => n.kind === 'Method');
+  expect(chosen).toBeTruthy();
+  await app.getByLabel('Find a symbol').fill(chosen!.symbolId);
+  await app.getByRole('button', { name: 'Find' }).click();
+  const inspector = app.getByRole('complementary', { name: 'Source and evidence inspector' });
+  const panel = inspector.getByRole('region', { name: 'Method tests' });
+  await expect(panel).toBeVisible();
+  if (liveLinks && associations.some(a => a.targetSymbolId === chosen!.symbolId)) {
+    await expect(panel).toContainText('direct static test links');
+    await expect(panel).toContainText('Not run');
+    await expect(panel).toContainText('Unobserved');
+  } else {
+    await expect(panel).toContainText(liveLinks ? 'No direct static test links mapped' :
+      'Test links not indexed');
+  }
+  const calls = await page.evaluate(() => (window as unknown as {
+    __mcpHostTracker: { names: string[] }
+  }).__mcpHostTracker.names);
+  expect(calls).toContain('archpulse_linked_tests');
 });

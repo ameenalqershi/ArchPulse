@@ -34,6 +34,8 @@ jobs:
         run: bash scripts/ci-mcp-protocol.sh
       - name: Native results-only TRX evidence smoke (S33 partial)
         run: bash scripts/ci-test-journey-results.sh
+      - name: Real-source static test associations and immutable sidecar smoke (S31 partial)
+        run: bash scripts/ci-static-test-links.sh
       - name: Offline foundation validation - native .NET
         run: dotnet run --project tooling/ArchPulse.RepositoryValidator --no-build --configuration Release
       - name: Offline S/T/R traceability validation - native .NET

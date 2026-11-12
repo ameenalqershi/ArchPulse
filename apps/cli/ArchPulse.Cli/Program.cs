@@ -22,27 +22,37 @@ try
         return 0;
     }
 
-    if (args.Length is 4 or 6 && args[0] == "test-links"
-        && args[2] == "--revision" && (args.Length == 4 || args[4] == "--target"))
+    if (args.Length >= 4 && args[0] == "test-links" && args[2] == "--revision")
     {
-        var analysis = await new SolutionGraphIndexer().AnalyzeSolutionAsync(args[1], args[3]);
-        if (args.Length == 6)
+        string? target = null, directory = null;
+        if ((args.Length - 4) % 2 != 0) throw new ArgumentException("Flag requires an argument.");
+        for (var i = 4; i < args.Length; i += 2)
         {
-            if (!analysis.Graph.Nodes.Any(n => n.SymbolId == args[5] &&
-                 n.Kind == GraphNodeKind.Method))
-                throw new ArgumentException("Target is not an indexed method at this revision.");
+            if (args[i] == "--target" && target is null) target = args[i + 1];
+            else if (args[i] == "--store" && directory is null) directory = args[i + 1];
+            else throw new ArgumentException("Unexpected or repeated test-links flag.");
+        }
+        var analysis = await new SolutionGraphIndexer().AnalyzeSolutionAsync(args[1], args[3]);
+        if (target is not null && !analysis.Graph.Nodes.Any(n =>
+            n.SymbolId == target && n.Kind == GraphNodeKind.Method))
+            throw new ArgumentException("Target is not an indexed method at this revision.");
+        if (directory is not null)
+        {
+            new GraphSnapshotStore(directory).Save(analysis.Graph);
+            new StaticTestAssociationStore(directory).Save(analysis.Graph, analysis.TestAssociations);
+        }
+        if (target is not null)
             Console.WriteLine(JsonSerializer.Serialize(new
             {
                 schema = analysis.TestAssociations.Schema,
                 graphRevision = analysis.Graph.Revision,
-                targetSymbolId = args[5],
-                mappingStatus = analysis.TestAssociations.ForTarget(args[5]).Count == 0
+                targetSymbolId = target,
+                mappingStatus = analysis.TestAssociations.ForTarget(target).Count == 0
                     ? "Unmapped" : "MappedDirectStatic",
                 executionStatus = "Unknown",
                 observedCoverage = false,
-                links = analysis.TestAssociations.ForTarget(args[5])
+                links = analysis.TestAssociations.ForTarget(target)
             }, jsonOptions));
-        }
         else
             Console.WriteLine(JsonSerializer.Serialize(analysis.TestAssociations, jsonOptions));
         return 0;
@@ -93,7 +103,7 @@ try
 
     Console.Error.WriteLine("ArchPulse native .NET CLI");
     Console.Error.WriteLine("  index-solution <.sln> --revision <git-sha> [--store <directory>]");
-    Console.Error.WriteLine("  test-links <trusted.sln> --revision <sha> [--target <exact-symbol-id>]");
+    Console.Error.WriteLine("  test-links <trusted.sln> --revision <sha> [--store <directory>] [--target <exact-symbol-id>]");
     Console.Error.WriteLine("  index <source-dir> --revision <git-sha> --project <name>");
     Console.Error.WriteLine("  graph-show <project> --revision <git-sha> --store <directory>");
     Console.Error.WriteLine("  graph-diff <project> --from <sha> --to <sha> --store <directory>");

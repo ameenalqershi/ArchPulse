@@ -23,6 +23,15 @@ builder.Services.AddSingleton(provider =>
     return new GraphSnapshotStore(storePath);
 });
 
+builder.Services.AddSingleton(provider =>
+{
+    var config = provider.GetRequiredService<IConfiguration>();
+    var storePath = config["ARCHPULSE_GRAPH_STORE"];
+    if (string.IsNullOrWhiteSpace(storePath) || !Directory.Exists(storePath))
+        throw new InvalidOperationException("ARCHPULSE_GRAPH_STORE must be an existing trusted local store.");
+    return new StaticTestAssociationStore(storePath);
+});
+
 builder.Services.AddMcpServer(options =>
     {
         options.ServerInfo = new Implementation

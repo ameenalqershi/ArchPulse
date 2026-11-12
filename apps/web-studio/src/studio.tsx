@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   breadcrumb, childrenOf, edgesWithin, exportMermaid, relatedEdges, rootNode
 } from './graph';
 import type { GraphEdge, GraphNode, GraphSnapshot } from './graph';
+import { parseMethodTestSelection } from './test-links';
+import type { MethodTestSelection } from './test-links';
 
 type Point = { x: number; y: number };
 type FetchState = 'idle' | 'loading' | 'loaded' | 'error';
@@ -42,6 +44,10 @@ export function App() {
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState<Point>({ x: 0, y: 0 });
   const [contextNotice, setContextNotice] = useState('');
+  const [testLinks, setTestLinks] = useState<MethodTestSelection | null>(null);
+  const [testLinksStatus, setTestLinksStatus] = useState<FetchState>('idle');
+  const [testLinksError, setTestLinksError] = useState('');
+
   const lastRequest = useRef<AbortController | null>(null);
   const canvasRef = useRef<SVGSVGElement>(null);
   const dragRef = useRef<{ startX: number; startY: number; panX: number; panY: number } | null>(null);
@@ -59,6 +65,41 @@ export function App() {
     () => graph?.nodes.find(node => node.symbolId === selectedId) ?? null,
     [graph, selectedId]
   );
+  // Abort stale queries on node, project or revision changes. An absent sidecar
+  // is NOT evidence that the method has no tests.
+  useEffect(() => {
+    setTestLinks(null);
+    setTestLinksError('');
+    if (!graph || !selectedId || selected?.kind !== 'Method') {
+      setTestLinksStatus('idle');
+      return;
+    }
+    const controller = new AbortController();
+    setTestLinksStatus('loading');
+    void (async () => {
+      try {
+        const response = await fetch('/api/graphs/' +
+          encodeURIComponent(graph.project) + '/' + encodeURIComponent(graph.revision) +
+          '/test-links?symbolId=' + encodeURIComponent(selectedId),
+          { signal: controller.signal });
+        if (!response.ok) throw new Error(
+          response.status === 404 ? 'Exact test mapping or method is unavailable.' :
+          'Test mapping unavailable (HTTP ' + response.status + ').');
+        const payload: unknown = await response.json();
+        const result = parseMethodTestSelection(payload, graph.project,
+          graph.revision, selectedId);
+        if (controller.signal.aborted) return;
+        setTestLinks(result);
+        setTestLinksStatus('loaded');
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        setTestLinksStatus('error');
+        setTestLinksError(error instanceof Error ? error.message : 'Test mapping unavailable.');
+      }
+    })();
+    return () => controller.abort();
+  }, [graph, selectedId, selected?.kind]);
+
   const selectedEdges = useMemo(
     () => graph && selectedId ? relatedEdges(graph, selectedId) : [],
     [graph, selectedId]
@@ -198,6 +239,32 @@ export function App() {
         <dt>Source file</dt><dd className="mono wrap">{selected.evidence.relativeFile || 'Project / solution root'}</dd>
         <dt>Location</dt><dd>{selected.evidence.line}:{selected.evidence.column}</dd>
       </dl>
+      {selected.kind === 'Method' && <section className="method-tests" aria-label="Method tests">
+        <h4>Tests · static source evidence</h4>
+        {testLinksStatus === 'loading' && <p className="muted">Loading source-based test associations…</p>}
+        {testLinksStatus === 'error' &&
+          <p className="test-unavailable" role="status">{testLinksError} No result is inferred.</p>}
+        {testLinksStatus === 'loaded' && testLinks?.mappingStatus === 'NotIndexed' &&
+          <p className="test-unavailable">Test links not indexed for this revision.
+            Index the trusted solution with the CLI and save the sidecar.</p>}
+        {testLinksStatus === 'loaded' && testLinks?.mappingStatus === 'Unmapped' &&
+          <p className="muted">No direct static test links mapped. This does not mean zero coverage.</p>}
+        {testLinksStatus === 'loaded' && testLinks?.mappingStatus === 'MappedDirectStatic' && <>
+          <div className="test-summary">{testLinks.links.length} direct static test link{testLinks.links.length === 1 ? '' : 's'}</div>
+          <div className="test-links-list">{testLinks.links.map(link =>
+            <article className="test-link" key={link.testMethodSymbolId + ':' + link.targetSymbolId}>
+              <strong className="mono wrap">{link.testMethodSymbolId}</strong>
+              <span className="muted small">{link.framework} · DirectInvocation · Static source</span>
+              <span className="test-unavailable small">Not run · Unobserved · Runner case unverified</span>
+              <ul>{link.callSites.map(site =>
+                <li className="mono wrap" key={site.relativeFile + ':' + site.line + ':' + site.column}>
+                  {site.relativeFile}:{site.line}:{site.column} · {site.kind}
+                </li>)}</ul>
+            </article>)}</div>
+        </>}
+        <p className="muted small">Test declarations are not runner-discovered test cases. No observed calls, coverage,
+          test execution, or pass/fail status is available from these links.</p>
+      </section>}
       <h4>Evidence-backed edges ({selectedEdges.length})</h4>
       {selectedEdges.length === 0 && <p className="muted">No graph edges mapped.</p>}
       <div className="edge-list">
@@ -213,7 +280,7 @@ export function App() {
       </div>
       {graph && childrenOf(graph, selected.symbolId).some(child => child.parentSymbolId === selected.symbolId)
         && <button className="primary" onClick={() => enterScope(selected.symbolId)}>Drill into this symbol</button>}
-      <p className="muted small">This selection is not a runtime execution trace. Ask AI, Run Tests and Refactor actions are not implemented yet.</p>
+      <p className="muted small">This selection is not a runtime execution trace. Run Tests, Ask AI and Refactor actions are not implemented yet.</p>
     </div>
   ) : (
     <div className="inspector-content">

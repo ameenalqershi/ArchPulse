@@ -107,3 +107,15 @@ Security boundaries:
 - Remote deployment requires identity, RBAC, audit, threat modeling,
   TLS, host-origin controls, data sensitivity review, MCP Apps host
   compatibility, and proper resource authorization.
+
+
+## Experimental static test links inside the MCP Apps Method Inspector
+
+A sixth read-only MCP tool, archpulse_linked_tests(project, revision, symbolId),
+now queries the bounded, immutable *.test-links.json sidecar created by the
+authorized local CLI test-links --store. The HTML widget opens
+these Roslyn direct-call associations inside the selected Method inspector
+with exact project/revision/source locations, status NotIndexed/Unmapped/
+MappedDirectStatic and explicit Unknown runtime outcome. It does not run tests,
+infer coverage or invoke Roslyn on untrusted MCP inputs. The simulated host
+is not evidence of real ChatGPT product host integration.

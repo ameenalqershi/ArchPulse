@@ -85,3 +85,17 @@ test-case identity, a passed test, per-test coverage, or an observed call trace*
 Keep TestCases out of the default architecture canvas. No web/MCP execution
 endpoint may accept an untrusted project for this analysis. Read
 `docs/guides/in-place-method-test-associations.md` and the separate TRX results guide.
+
+
+## Source-backed S31 Method Inspector milestone
+
+ArchPulse.Cli test-links on a trusted solution with --revision and --store
+persists a read-only exact-revision test-links document alongside the graph
+snapshot. ArchPulse.Server GET /api/graphs/{project}/{revision}/test-links
+and the native MCP archpulse_linked_tests expose the same evidenced
+source-only relationships. React and the MCP HTML widget attach findings
+to the existing selected Method inspector, never to new TestCase canvas nodes.
+NotIndexed, Unmapped, MappedDirectStatic and Unknown test execution outcomes
+are distinct. No test runner/coverage/trace/authorization system is provided,
+and neither unauthenticated loopback service may be publicly exposed.
+See docs/guides/in-place-method-test-associations.md and optional local E2E.

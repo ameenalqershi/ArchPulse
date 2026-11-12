@@ -21,7 +21,8 @@ await using var client = await McpClient.CreateAsync(new HttpClientTransport(new
 var tools = await client.ListToolsAsync();
 string[] needed = [
     "archpulse_open_graph", "archpulse_graph_snapshot", "archpulse_symbol_context",
-    "archpulse_find_evidenced_path", "archpulse_guardian_check"
+    "archpulse_find_evidenced_path", "archpulse_guardian_check",
+    "archpulse_linked_tests"
 ];
 var names = tools.Select(t => t.Name).ToHashSet(StringComparer.Ordinal);
 foreach (var neededTool in needed)
@@ -49,6 +50,26 @@ if (graph.GetProperty("revision").GetString() != args[2] ||
 if (graph.GetProperty("nodes").GetArrayLength() < 2 ||
     graph.GetProperty("edges").GetArrayLength() < 1)
     throw new InvalidDataException("MCP graph was unexpectedly empty.");
+
+var firstMethod = graph.GetProperty("nodes").EnumerateArray()
+    .FirstOrDefault(n => n.GetProperty("kind").GetString() == "Method");
+if (firstMethod.ValueKind != JsonValueKind.Undefined)
+{
+    var selection = await client.CallToolAsync("archpulse_linked_tests",
+        new Dictionary<string, object?> {
+            ["project"] = args[1], ["revision"] = args[2],
+            ["symbolId"] = firstMethod.GetProperty("symbolId").GetString()
+        });
+    if (selection.IsError == true ||
+        selection.StructuredContent is not JsonElement mapping ||
+        mapping.GetProperty("targetSymbolId").GetString() !=
+            firstMethod.GetProperty("symbolId").GetString() ||
+        mapping.GetProperty("observedCoverage").GetBoolean() ||
+        mapping.GetProperty("executionStatus").GetString() != "Unknown" ||
+        mapping.GetProperty("mappingStatus").GetString() is not
+            ("NotIndexed" or "Unmapped" or "MappedDirectStatic"))
+        throw new InvalidDataException("MCP static test links incorrectly inferred runtime outcomes.");
+}
 
 var resourceResult = await client.ReadResourceAsync("ui://archpulse/graph");
 if (!resourceResult.Contents.Any(c => c is TextResourceContents x
