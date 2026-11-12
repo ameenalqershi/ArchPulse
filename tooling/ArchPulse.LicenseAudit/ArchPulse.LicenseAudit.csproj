@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <Description>Offline native C# audit of restored NuGet package license metadata (not legal clearance).</Description>
+  </PropertyGroup>
+</Project>

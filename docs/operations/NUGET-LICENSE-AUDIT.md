@@ -8,13 +8,16 @@ A legacy metadata exception applies only to a URL-only package whose current `li
 
 A **documented legacy metadata exception** may keep the *metadata-change* gate green while showing a nonzero `pendingManualReviews` count. This is not a conclusion that its license is compatible. It must have an issue, a reason, and the declared primary source for later verification. The stricter `--require-complete` mode deliberately fails while unresolved reviews exist and is a prerequisite to claiming a complete license review or production release readiness.
 
+The canonical audit is now implemented in **C#/.NET** with 12 initial xUnit contract tests, pinned package resolution and a no-network cache reader. The earlier Python script is retained as an optional migration reference, not the engine or release authority.
+
 ## Reproduce
 
 ```bash
 dotnet restore ArchPulse.sln --locked-mode
-python3 scripts/audit_nuget_licenses.py --output /tmp/archpulse-nuget-license-audit.json
-python3 scripts/audit_nuget_licenses.py --require-complete  # expected to fail until reviewed
-python3 -m unittest discover -s scripts -p 'test_*.py' -v
+dotnet build ArchPulse.sln -c Release --no-restore
+dotnet run --project tooling/ArchPulse.LicenseAudit -c Release --no-build -- --repo . --output /tmp/archpulse-nuget-license-audit.json
+dotnet run --project tooling/ArchPulse.LicenseAudit -c Release --no-build -- --repo . --require-complete  # expected to fail until reviewed
+dotnet test ArchPulse.sln -c Release --no-build
 ```
 
 The current tracked foundation includes one URL-only transitive package, `xunit.abstractions@2.0.3`, and its review remains open in [issue #10](https://github.com/ameenalqershi/ArchPulse/issues/10). It is intentionally **not** automatically equated to another package's Apache-2.0 metadata. Review the version-specific original license and distribution obligations, document the actual evidence, and then resolve/remove the exception without falsifying the package's metadata.

@@ -2,10 +2,11 @@
 
 ## Native .NET migration
 
-The live Foundation CI branch rebuild/dotnet-native-foundation contains two jobs:
+The merged main-branch Foundation CI contains the following required jobs:
 
 - foundation-build-test: locked restore, Release build, all xUnit tests,
-  repository/handoff contract validator, and traceability validator.
+  MCP protocol smoke, repository/handoff/traceability checks, and proposed
+  offline native C# NuGet metadata audit.
 - foundation-document-check: independent locked restore and native .NET
   repository, handoff and traceability validators.
 
@@ -33,8 +34,8 @@ not persisted. This CI passing does not certify product completion.
 
 ## Proposed later gates (not active yet)
 
-Static analyzers, formatting, architecture policy conformance, dependency
-license audit and SBOM; CodeQL/secrets/vulnerability scans; isolated
+Static analyzers, formatting, architecture policy conformance, comprehensive
+third-party license clearance and SBOM; CodeQL/secrets/vulnerability scans; isolated
 integration tests, benchmarks, accessibility; release signing and
 artifact provenance. Never present them as implemented/green without
 actual workflow evidence or configure them as required checks before
@@ -42,3 +43,7 @@ their first successful GitHub run.
 
 References: S16, S17, S19, S20 and the
 [rebuild report](REBUILD-2026-11-12.md).
+
+## Native license metadata proposal (PR after T104 merge)
+
+The added .NET audit reads only restored local NuGet package metadata and committed lockfiles. A documented URL-only legacy license exception is reported as a pending manual review; ordinary audit success does **not** certify license compatibility, while a separate --require-complete option intentionally fails before release until the exception is resolved. Hosted CI on this PR must confirm the gate; Python legacy scripts are not used by this gate.

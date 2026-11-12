@@ -12,7 +12,7 @@
 
 ## Commands and environment
 
-Requires .NET 10 SDK. `dotnet restore ArchPulse.sln --locked-mode`; `dotnet build ArchPulse.sln --no-restore -c Release`; `dotnet test ArchPulse.sln --no-build -c Release`. Validate foundation and handoffs with `python3 scripts/validate_foundation.py`, `python3 scripts/validate_traceability.py`, `python3 scripts/validate_handoffs.py`, and `python3 -m unittest discover -s scripts -p 'test_*.py' -v`. These commands are unverified until a real run is recorded for the exact commit. Do not add fake projects for unimplemented modules.
+Requires .NET 10 SDK. `dotnet restore ArchPulse.sln --locked-mode`; `dotnet build ArchPulse.sln --no-restore -c Release`; `dotnet test ArchPulse.sln --no-build -c Release`. Use the canonical native validators: `dotnet run --project tooling/ArchPulse.RepositoryValidator` and `dotnet run --project tooling/ArchPulse.TraceabilityValidator`. For local NuGet metadata checks run `dotnet run --project tooling/ArchPulse.LicenseAudit -- --repo .`. Python governance scripts in scripts/ are legacy/optional, not the native core or primary CI. Do not infer license clearance or product completion from passing foundation checks.
 
 ## Start/resume checklist
 
@@ -33,7 +33,7 @@ The original foundation checkpoint is historical and contains formerly pending r
 
 ## Rebuild branch handoff (2026-11-12)
 
-The ongoing .NET-native work is isolated on rebuild/dotnet-native-foundation.
+The initial .NET-native work was integrated into main via PR #30 and stacked PRs #32–#35; historical rebuild branches are not current source-of-truth.
 See docs/operations/REBUILD-2026-11-12.md,
 docs/operations/agent-handoff/REBUILD-2026-11-12.md and
 docs/guides/dotnet-native-cli.md. Never claim proposed S00–S33
@@ -54,12 +54,11 @@ authorize a protected change. S02/S03/S04/S15 remain incomplete.
 An experimental ASP.NET Core server exposes stored Graph queries on
 127.0.0.1:5217. See docs/guides/local-graph-api.md. The server is
 unauthenticated and must NEVER be publicly exposed. It cannot execute
-code or commit changes. Real MCP, Studio, identity and production API
-authorization are not yet implemented.
+code or commit changes. Native C# MCP Apps and React Studio prototypes are now merged, but real ChatGPT host verification, identity and production API authorization remain incomplete.
 
 ## Experimental React Web Studio
 
-The stacked Web Studio branch introduces apps/web-studio. It only loads
+The integrated Web Studio prototype lives in apps/web-studio. It only loads
 source-backed graph JSON by exact project and revision from the
 loopback-only ASP.NET API and never makes up nodes or traces.
 Do not treat it as a fully accepted S09/S27 studio or remotely expose
@@ -67,7 +66,7 @@ its unauthenticated local servers. See apps/web-studio/README.md.
 
 ## Native .NET MCP Apps experiment
 
-The experimental stacked MCP branch contains server/ArchPulse.McpServer
+The merged experimental native MCP implementation contains server/ArchPulse.McpServer
 (5 read-only tools plus ui://archpulse/graph). Never expose or tunnel
 the unauthenticated 127.0.0.1:5231 endpoint. Do not claim that tests
 in an MCP Apps host simulator demonstrate ChatGPT product integration.
