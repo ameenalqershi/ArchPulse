@@ -31,6 +31,44 @@ See [handoff protocol](docs/operations/agent-handoff/README.md) and [schema](doc
 
 The original foundation checkpoint is historical and contains formerly pending remote actions. Review the latest [foundation verification ledger](docs/operations/FOUNDATION-VERIFICATION.md) and [2026-11-10 audit handoff](docs/operations/agent-handoff/FOUNDATION-AUDIT-2026-11-10.json), then independently query the latest GitHub branch, ruleset and CI before changing anything. Also read the [CI gate policy](docs/operations/CI-GATES.md) and unresolved [name/branding risk](docs/operations/BRANDING-RISK.md).
 
-## Machine-checkable checkpoints (S25)
+## Rebuild branch handoff (2026-11-12)
 
-Before taking any external action, run `python3 scripts/validate_handoff.py` and review the [independent recovery runbook](docs/operations/agent-handoff/REHEARSAL.md). The validator only checks structure and common secret patterns; it does not authenticate a previous agent’s claims or grant authorization. Every incoming agent must re-fetch live GitHub refs, PRs, checks and Notion dependencies, and reconcile Unknown effects before retry. See [T117 draft checkpoint](docs/operations/agent-handoff/T117-2026-11-10.json); do not interpret in-progress/review checkpoints as feature completion.
+The ongoing .NET-native work is isolated on rebuild/dotnet-native-foundation.
+See docs/operations/REBUILD-2026-11-12.md,
+docs/operations/agent-handoff/REBUILD-2026-11-12.md and
+docs/guides/dotnet-native-cli.md. Never claim proposed S00–S33
+requirements are verified merely from foundation CI or the limited first
+Roslyn graph. Preserve existing agent work/PRs and do not rewrite main.
+
+## Experimental graph indexing milestone — 2026-11-12
+
+The rebuild branch also contains a real MSBuildWorkspace solution
+indexer, immutable JSON graph snapshots, evidence-scoped queries and
+preliminary ArchitectureGuardian rules. Read the .NET CLI guide and
+proposed ADR-0001. NEVER load untrusted MSBuild projects on the shared
+VPS. The waiver approver text is not verified identity and cannot
+authorize a protected change. S02/S03/S04/S15 remain incomplete.
+
+## Read-only local API milestone
+
+An experimental ASP.NET Core server exposes stored Graph queries on
+127.0.0.1:5217. See docs/guides/local-graph-api.md. The server is
+unauthenticated and must NEVER be publicly exposed. It cannot execute
+code or commit changes. Real MCP, Studio, identity and production API
+authorization are not yet implemented.
+
+## Experimental React Web Studio
+
+The stacked Web Studio branch introduces apps/web-studio. It only loads
+source-backed graph JSON by exact project and revision from the
+loopback-only ASP.NET API and never makes up nodes or traces.
+Do not treat it as a fully accepted S09/S27 studio or remotely expose
+its unauthenticated local servers. See apps/web-studio/README.md.
+
+## Native .NET MCP Apps experiment
+
+The experimental stacked MCP branch contains server/ArchPulse.McpServer
+(5 read-only tools plus ui://archpulse/graph). Never expose or tunnel
+the unauthenticated 127.0.0.1:5231 endpoint. Do not claim that tests
+in an MCP Apps host simulator demonstrate ChatGPT product integration.
+See docs/guides/mcp-apps-local.md. Full S29/S30 acceptance pending.
