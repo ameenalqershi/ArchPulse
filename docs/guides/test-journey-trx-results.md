@@ -92,3 +92,65 @@ The hosted CI job runs
 scripts/ci-trx-source-candidates.sh after the actual repository VSTest run
 and uses the same locked native .NET CLI to assert nonzero exact-name
 candidates, same *declared* SHA provenance, and no forged observed coverage.
+
+
+## Explicit trusted local test invocation and content digest receipt (S33 partial)
+
+The separate **local-only** CLI capture command is opt-in. It executes an
+already-built native test project with the caller's operating-system
+privileges. **This is not a sandbox. Do not use it with untrusted checkouts,
+external repositories, production environments, a publicly exposed API,
+or arbitrary remote MCP callers.** No API/MCP tool dispatches it.
+
+In a *clean* trusted checkout with locked packages restored and Release
+output already built:
+
+    dotnet restore ArchPulse.sln --locked-mode
+    dotnet build ArchPulse.sln -c Release --no-restore
+    RESULT_DIR="$(mktemp -d)"
+    dotnet run --project tooling/ArchPulse.TestJourney -c Release --no-build -- \
+      --capture tests/ArchPulse.Core.Tests/ArchPulse.Core.Tests.csproj \
+      --root . --output-dir "$RESULT_DIR" --allow-local-execution > /tmp/archpulse-local-run-receipt.json
+
+The output directory must already exist, be empty, and be outside the
+repository. The CLI does not accept additional runner arguments or arbitrary
+non-test projects. The subprocess uses `dotnet test` with
+`--no-build --no-restore -c Release`, a private output directory, and
+a three-minute timeout. It discards stdout/stderr rather than publishing
+possibly private test inputs, exception details, access tokens or secrets.
+This does not make executed code safe: only trusted local test projects
+should be explicitly authorized.
+
+Evidence written into the JSON receipt:
+
+- Local `git rev-parse HEAD` and `git status --porcelain` before and after
+  execution; both must report the same SHA and a clean checkout.
+- SHA-256 of the **conventional Release test DLL** before and after test
+  invocation; mutation is rejected. This proves the CLI read identical
+  local bytes, NOT that the runner loaded that exact DLL or that those bytes
+  were built from the declared Git revision.
+- SHA-256 and parsed run ID of the fresh private VSTest TRX artifact and
+  the observed `dotnet test` process exit code. A failed test run, if
+  a valid TRX exists, still yields an attempt-scoped evidence receipt with
+  nonzero CLI exit code; it is not misreported as a successful process.
+- Sanitized attempt counts and runner outcome totals, with **no** raw logs,
+  raw parameter values, stack traces, arguments or runtime method traces.
+- `SutMethodCallsObserved=false`, `PerTestCoverageProven=false`,
+  `SutExecutionEvidence=NoSutCallOrReturnEvidence`. Runner metadata,
+  a passed test, git checks and local DLL digests cannot prove the
+  identity of a runtime test case to a Roslyn method or SUT call coverage.
+
+The JSON schema label is
+`archpulse.test-journey.local-run-receipt/v1`. The prior results-only
+and static source-name candidate import commands remain unchanged.
+The CI smoke at `scripts/ci-local-test-run-capture.sh` validates the opt-in
+flag, the clean source check, and actual TRX content hashing with the
+trusted Core.Tests project. CI invocation is a deliberate, already trusted
+runner operation, never a request through the unauthenticated loopback
+Graph Server or MCP Apps host.
+
+**Unfinished S33 features:** independent test binary provenance attestation,
+runner `TestCaseId` identity with source declarations, an isolated execution
+sandbox, safe Activity/trace context propagation, observed SUT spans/calls,
+bounded privacy-reviewed replay and native interactive results in Web
+Studio/MCP Apps. No acceptance or production readiness is asserted.
