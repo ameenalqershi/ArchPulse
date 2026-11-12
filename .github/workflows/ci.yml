@@ -32,6 +32,8 @@ jobs:
         run: dotnet test ArchPulse.sln --no-build --configuration Release --logger 'trx;LogFileName=archpulse-tests.trx'
       - name: MCP streamable-HTTP and UI resource protocol smoke
         run: bash scripts/ci-mcp-protocol.sh
+      - name: Native results-only TRX evidence smoke (S33 partial)
+        run: bash scripts/ci-test-journey-results.sh
       - name: Offline foundation validation - native .NET
         run: dotnet run --project tooling/ArchPulse.RepositoryValidator --no-build --configuration Release
       - name: Offline S/T/R traceability validation - native .NET
