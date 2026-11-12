@@ -45,7 +45,7 @@
   "knownBlockers": [
     "Notion data-source query usage limit reached",
     "Index of baseline has one unresolved static call",
-    "PR head CI pending"
+    "Initial PR head CI passed; follow-up retirement head pending"
   ],
   "risks": [
     "No full sandbox or RBAC; server loopback-only",

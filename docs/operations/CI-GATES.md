@@ -1,30 +1,23 @@
-# Foundation CI and future quality gates
+# Native .NET Foundation CI — 2026-11-12
 
-**Current evidence as of 2026-11-10**: `Foundation CI` defines `foundation-build-test` and `foundation-document-check`. Both jobs passed in [GitHub Actions run 42758731375](https://github.com/ameenalqershi/ArchPulse/actions/runs/42758731375) on SHA `3c694ac44f445fba60c9e892e76ca96eb3022725`. New pull-request commits require fresh checks. They are not a product release certificate.
+The two current required GitHub checks are named foundation-build-test and foundation-document-check, enforced by main ruleset 26926696. The initial native .NET workflow succeeded on [run 43248347098](https://github.com/ameenalqershi/ArchPulse/actions/runs/43248347098) for PR #31 commit ae8272ba712308280f498ea044503d426587c7f3. This validates the native CI path on that exact revision, not production features or any later commit.
 
-## Existing jobs
+## Actual gates
+- foundation-build-test: pinned checkout and .NET 10 SDK actions; locked restore, Release build, all C# unit/integration tests (28 locally), pinned Node 24 setup and locked Web Studio TypeScript production build.
+- foundation-document-check: pinned checkout and SDK setup; locked restore/build; .NET RepositoryValidator for files/licenses/SPDX/links and .NET TraceabilityValidator for historical S/T/R registry references, DAG and statuses.
+- GitHub Actions permissions: contents read; checkout credentials not persisted; no Python runtime required by either job.
 
-- `foundation-build-test`: locked NuGet restore, .NET Release build, four existing evidence-receipt unit tests.
-- `foundation-document-check`: structural and link checks from `scripts/validate_foundation.py`; independent Python standard-library contract tests are added by the foundation audit.
-- GitHub token permission is `contents: read`; checkout credentials are not persisted.
+## Future unimplemented gates
+Complete architecture Guardian policy enforcement, security and license audit, SBOM, secrets, untrusted-code sandbox, endpoint auth, runtime tracing, MCP integration, Futures, production release and multi-repository E2E performance validation remain distinct work. Other CodeQL jobs may exist independently and must be evaluated on each exact commit.
 
-## Intended additional gates (not all implemented)
-
-- Static analyzers, formatting checks, architecture policy conformance, dependency license audit and SBOM.
-- Security scans (CodeQL or approved equivalent, secrets, dependency vulnerabilities), with one authoritative CodeQL configuration.
-- Integration tests in ephemeral isolated workers, regression/cross-platform suites, benchmark baselines and accessibility checks.
-- Release signing and artifact provenance; no signing keys or uploads in untrusted fork PRs.
-
-**Never declare any of these checks active or green until the workflow and results have been independently observed.** Before adding required checks to branch rules, run them on a PR, inspect their names, pass states and trust boundaries, then update policy without locking contributors out.
-
-## Local reproducibility
-
+## Reproduce locally
 ```bash
-python3 scripts/validate_foundation.py
-python3 -m unittest discover -s scripts -p 'test_*.py' -v
 dotnet restore ArchPulse.sln --locked-mode
 dotnet build ArchPulse.sln -c Release --no-restore
 dotnet test ArchPulse.sln -c Release --no-build --no-restore
+dotnet run --project tooling/ArchPulse.RepositoryValidator -c Release --no-build
+dotnet run --project tooling/ArchPulse.TraceabilityValidator -c Release --no-build
+(cd apps/web-studio && npm ci --ignore-scripts && npm run build)
 ```
 
-References: [Quality Strategy](../architecture/quality-strategy.md), S16, S17, S19 and S20.
+Never add newly required check names to main ruleset before verifying an actual run. The pre-rebuild [run 42758731375](https://github.com/ameenalqershi/ArchPulse/actions/runs/42758731375) was Python-based and is historical evidence only.

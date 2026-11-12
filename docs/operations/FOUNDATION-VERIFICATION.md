@@ -32,11 +32,15 @@ This is an evidence ledger for **repository foundation only**, not a product rea
 ```bash
 git status --short --branch
 git rev-parse HEAD
-python3 scripts/validate_foundation.py
-python3 -m unittest discover -s scripts -p 'test_*.py' -v
+dotnet run --project tooling/ArchPulse.RepositoryValidator -c Release --no-build
+dotnet run --project tooling/ArchPulse.TraceabilityValidator -c Release --no-build
 dotnet restore ArchPulse.sln --locked-mode
 dotnet build ArchPulse.sln -c Release --no-restore
 dotnet test ArchPulse.sln -c Release --no-build --no-restore
 ```
 
 The latest verified GitHub branch/PR and CI receipt must be added to a new checkpoint after publication; never silently re-label an unverified external effect as success.
+
+## 2026-11-12 migration notice
+
+Historical Python verification table above remains a dated record of what was run on 2026-11-10, **not current instructions**. Native validators replaced Python after both required jobs passed on initial rebuild PR #31 at SHA ae8272ba712308280f498ea044503d426587c7f3 (GitHub Actions run 43248347098). Reverify latest head CI before claiming migration complete; the native command block above supersedes the historical Python instructions.
