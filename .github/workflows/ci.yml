@@ -24,6 +24,8 @@ jobs:
         run: dotnet --info
       - name: Locked restore
         run: dotnet restore ArchPulse.sln --locked-mode
+      - name: Restore golden multi-project solution without paid dependencies
+        run: dotnet restore examples/billing-multi-project/Billing.sln --locked-mode
       - name: Release build
         run: dotnet build ArchPulse.sln --no-restore --configuration Release
       - name: Unit, graph and validator regression tests

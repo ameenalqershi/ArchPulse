@@ -41,6 +41,17 @@ public static class StaticGraphIndexer
             projectName, syntaxTrees, references,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
+        return IndexCompilation(projectName, compilation, revision);
+    }
+
+    /// <summary>Index a semantic compilation with explicit known project assemblies.</summary>
+    public static GraphSnapshot IndexCompilation(string projectName, CSharpCompilation compilation,
+        string revision, IReadOnlyDictionary<string, string>? knownProjectAssemblies = null)
+    {
+        if (string.IsNullOrWhiteSpace(projectName))
+            throw new ArgumentException("Project name is required.", nameof(projectName));
+        if (string.IsNullOrWhiteSpace(revision))
+            throw new ArgumentException("Explicit source revision is required.", nameof(revision));
         var nodes = new Dictionary<string, GraphNode>(StringComparer.Ordinal);
         var edges = new Dictionary<string, GraphEdge>(StringComparer.Ordinal);
         var diagnostics = new List<string>();
@@ -49,7 +60,7 @@ public static class StaticGraphIndexer
             new SourceEvidence(revision, "", 0, 0, EvidenceKind.Static)));
 
         var methods = new List<(MethodDeclarationSyntax Syntax, IMethodSymbol Symbol, SemanticModel Model)>();
-        foreach (var tree in syntaxTrees)
+        foreach (var tree in compilation.SyntaxTrees)
         {
             var model = compilation.GetSemanticModel(tree);
             var root = tree.GetRoot();
@@ -111,9 +122,17 @@ public static class StaticGraphIndexer
                     diagnostics.Add($"Unknown call: {location.Path}:{location.StartLinePosition.Line + 1}");
                     continue;
                 }
-                string targetId = SymbolId(projectName, invoked.ReducedFrom ?? invoked.OriginalDefinition);
-                if (!nodes.ContainsKey(targetId))
-                    continue; // External symbol: no invented target node or same-repository relationship.
+                string? targetProject = string.Equals(invoked.ContainingAssembly?.Name,
+                    compilation.AssemblyName, StringComparison.Ordinal)
+                    ? projectName
+                    : knownProjectAssemblies is not null
+                      && knownProjectAssemblies.TryGetValue(invoked.ContainingAssembly?.Name ?? "", out var known)
+                        ? known : null;
+                if (targetProject is null)
+                    continue; // No invented internal edges for libraries not present in this workspace.
+                string targetId = SymbolId(targetProject, invoked.ReducedFrom ?? invoked.OriginalDefinition);
+                if (targetProject == projectName && !nodes.ContainsKey(targetId))
+                    continue; // Symbol absent from source declarations (e.g. external metadata).
                 int ordinal = ordinalByTarget.GetValueOrDefault(targetId) + 1;
                 ordinalByTarget[targetId] = ordinal;
                 string edgeId = $"call:{sourceId}:{targetId}:{ordinal}";
