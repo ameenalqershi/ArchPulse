@@ -211,6 +211,46 @@ app.MapGet("/api/graphs/{project}/{revision}/path",
         catch (InvalidOperationException) { return Results.Problem("Traversal safety limit reached.", statusCode: 422); }
     });
 
+// T025/S05: structural candidate feature impact only. This does not inspect
+// Git patch contents or prove executed business effects of a proposed PR.
+app.MapGet("/api/graphs/{project}/feature-impact",
+    (GraphSnapshotStore graphs, FeatureCatalogStore features,
+     string project, string from, string to) =>
+    {
+        if (string.IsNullOrWhiteSpace(from) || string.IsNullOrWhiteSpace(to) ||
+            from.Length > 160 || to.Length > 160)
+            return Results.BadRequest(new { error = "Two exact bounded revisions are required." });
+        var before = graphs.Load(project, from);
+        var after = graphs.Load(project, to);
+        if (before is null || after is null) return Results.NotFound();
+        try
+        {
+            var catalog = features.Load(before);
+            if (catalog is null)
+                return Results.Ok(new
+                {
+                    schema = FeatureImpactAnalyzer.Schema, project, fromRevision = from,
+                    toRevision = to, catalogStatus = "NotIndexed",
+                    evidenceScope = FeatureImpactAnalyzer.Scope,
+                    runtimeStatus = "Unknown", impacts = Array.Empty<FeatureImpactSignal>()
+                });
+            var report = FeatureImpactAnalyzer.Assess(before, after, catalog);
+            if (report.Impacts.Count > 300)
+                return Results.Problem("Candidate feature impact exceeds local response bounds.",
+                    statusCode: 413);
+            return Results.Ok(report);
+        }
+        catch (InvalidDataException)
+        {
+            return Results.Problem("Feature impact inputs or provenance could not be validated.",
+                statusCode: 422);
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return Results.Problem("Stored feature mapping is unreadable.", statusCode: 422);
+        }
+    });
+
 app.MapGet("/api/graphs/{project}/diff",
     (GraphSnapshotStore store, string project, string from, string to) =>
     {

@@ -14,6 +14,11 @@ mkdir -p "$TEMP/graph"
 dotnet run --project apps/cli/ArchPulse.Cli --no-build -c Release -- \
   index-solution examples/billing-multi-project/Billing.sln \
   --revision ci-mcp-fixture --store "$TEMP/graph" >"$TEMP/index.json"
+# Exact second graph revision for T025 comparison. It intentionally has no
+# structural changes; an empty result must not claim that a Git PR is safe.
+dotnet run --project apps/cli/ArchPulse.Cli --no-build -c Release -- \
+  index-solution examples/billing-multi-project/Billing.sln \
+  --revision ci-mcp-fixture-future --store "$TEMP/graph" >"$TEMP/index-next.json"
 
 # Use a real, statically resolved call in the trusted fixture. Business membership
 # is a manually authored candidate, not a source-proven business claim.

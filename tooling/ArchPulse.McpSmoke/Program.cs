@@ -22,7 +22,8 @@ var tools = await client.ListToolsAsync();
 string[] needed = [
     "archpulse_open_graph", "archpulse_graph_snapshot", "archpulse_symbol_context",
     "archpulse_find_evidenced_path", "archpulse_guardian_check",
-    "archpulse_linked_tests", "archpulse_feature_scope", "archpulse_feature_signals"
+    "archpulse_linked_tests", "archpulse_feature_scope", "archpulse_feature_signals",
+    "archpulse_feature_impact"
 ];
 var names = tools.Select(t => t.Name).ToHashSet(StringComparer.Ordinal);
 foreach (var neededTool in needed)
@@ -124,6 +125,33 @@ var invalidSignalRevision = await client.CallToolAsync("archpulse_feature_signal
     });
 if (invalidSignalRevision.IsError != true)
     throw new InvalidDataException("MCP feature discovery accepted an unknown revision.");
+
+// T025: an exact, read-only two-revision candidate impact query. No
+// structural changes must never imply that a full Git PR is unaffected.
+if (args.Length == 4)
+{
+    var impact = await client.CallToolAsync("archpulse_feature_impact",
+        new Dictionary<string, object?> {
+            ["project"] = args[1],
+            ["fromRevision"] = args[2],
+            ["toRevision"] = args[2] + "-future"
+        });
+    if (impact.IsError == true ||
+        impact.StructuredContent is not JsonElement impactResult ||
+        impactResult.GetProperty("schema").GetString() != "archpulse.feature-impact/v1" ||
+        impactResult.GetProperty("evidenceScope").GetString() !=
+            "CandidateImpact;StructureOnly;NotGitPRDiff;NotObservedRuntimeOrApproval" ||
+        impactResult.GetProperty("runtimeStatus").GetString() != "Unknown" ||
+        impactResult.GetProperty("impacts").GetArrayLength() != 0)
+        throw new InvalidDataException("MCP structural feature-impact protocol overclaimed change evidence.");
+}
+var missingImpact = await client.CallToolAsync("archpulse_feature_impact",
+    new Dictionary<string, object?> {
+        ["project"] = args[1], ["fromRevision"] = args[2],
+        ["toRevision"] = "unknown-revision"
+    });
+if (missingImpact.IsError != true)
+    throw new InvalidDataException("MCP feature impact accepted an unknown revision.");
 
 var resourceResult = await client.ReadResourceAsync("ui://archpulse/graph");
 if (!resourceResult.Contents.Any(c => c is TextResourceContents x
