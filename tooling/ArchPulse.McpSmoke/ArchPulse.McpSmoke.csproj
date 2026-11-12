@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType>
+    <Description>Real HTTP MCP client protocol smoke with no AI API or secret.</Description></PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="ModelContextProtocol" Version="2.4.0"/>
+  </ItemGroup>
+</Project>
