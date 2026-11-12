@@ -99,6 +99,7 @@ public static partial class RepositoryChecker
             if (data.Any(r => r.GetValueOrDefault("Implementation status", "Planned") is not ("Planned" or "Unknown")))
                 errors.Add($"{name}: do not fabricate verified statuses");
         }
+        errors.AddRange(HandoffChecker.Validate(root));
         return errors;
     }
 
