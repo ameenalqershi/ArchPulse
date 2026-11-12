@@ -71,3 +71,7 @@ The merged experimental native MCP implementation contains server/ArchPulse.McpS
 the unauthenticated 127.0.0.1:5231 endpoint. Do not claim that tests
 in an MCP Apps host simulator demonstrate ChatGPT product integration.
 See docs/guides/mcp-apps-local.md. Full S29/S30 acceptance pending.
+
+## Native results-only Test Journey evidence (S31/S33 partial)
+
+The offline C# TRX importer in tooling/ArchPulse.TestJourney reads existing trusted local test reports and emits result-only evidence with SHA-256. It does NOT execute tests, observe implementation calls, capture values or prove test-to-method mapping. See docs/guides/test-journey-trx-results.md. Run only in approved local/CI contexts; never expose code execution through unauthenticated MCP or HTTP APIs.
