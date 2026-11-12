@@ -36,6 +36,8 @@ jobs:
         run: dotnet run --project tooling/ArchPulse.RepositoryValidator --no-build --configuration Release
       - name: Offline S/T/R traceability validation - native .NET
         run: dotnet run --project tooling/ArchPulse.TraceabilityValidator --no-build --configuration Release
+      - name: Native offline NuGet metadata audit (pending reviews stay explicit)
+        run: dotnet run --project tooling/ArchPulse.LicenseAudit --no-build --configuration Release -- --repo . --output /tmp/archpulse-nuget-license-audit.json
   foundation-document-check:
     name: foundation-document-check
     runs-on: ubuntu-latest
