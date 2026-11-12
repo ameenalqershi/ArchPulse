@@ -30,3 +30,12 @@ See [handoff protocol](docs/operations/agent-handoff/README.md) and [schema](doc
 ## Evidence audit and current handoff
 
 The original foundation checkpoint is historical and contains formerly pending remote actions. Review the latest [foundation verification ledger](docs/operations/FOUNDATION-VERIFICATION.md) and [2026-11-10 audit handoff](docs/operations/agent-handoff/FOUNDATION-AUDIT-2026-11-10.json), then independently query the latest GitHub branch, ruleset and CI before changing anything. Also read the [CI gate policy](docs/operations/CI-GATES.md) and unresolved [name/branding risk](docs/operations/BRANDING-RISK.md).
+
+## Rebuild branch handoff (2026-11-12)
+
+The ongoing .NET-native work is isolated on rebuild/dotnet-native-foundation.
+See docs/operations/REBUILD-2026-11-12.md,
+docs/operations/agent-handoff/REBUILD-2026-11-12.md and
+docs/guides/dotnet-native-cli.md. Never claim proposed S00–S33
+requirements are verified merely from foundation CI or the limited first
+Roslyn graph. Preserve existing agent work/PRs and do not rewrite main.

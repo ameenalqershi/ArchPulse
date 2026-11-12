@@ -6,9 +6,6 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-concurrency:
-  group: foundation-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 jobs:
   foundation-build-test:
     name: foundation-build-test
@@ -16,32 +13,22 @@ jobs:
     timeout-minutes: 25
     steps:
       - name: Checkout without persisted credentials
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # pinned v4 ref as of 2026-11-10
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
       - name: Install .NET SDK
-        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # pinned v4 ref as of 2026-11-10
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
         with:
           dotnet-version: 10.0.x
       - name: SDK version
         run: dotnet --info
-      - name: Restore
+      - name: Locked restore
         run: dotnet restore ArchPulse.sln --locked-mode
-      - name: Build
+      - name: Release build
         run: dotnet build ArchPulse.sln --no-restore --configuration Release
-      - name: Unit tests
-        run: dotnet test ArchPulse.sln --no-build --configuration Release --logger 'trx;LogFileName=unit-tests.trx'
-  foundation-document-check:
-    name: foundation-document-check
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          persist-credentials: false
-      - name: Check foundation structure, license, links and templates
-        run: python3 scripts/validate_foundation.py
-      - name: Validate traceability indices and dependency DAG
-        run: python3 scripts/validate_traceability.py
-      - name: Validate traceability and handoff contracts
-        run: python3 -m unittest discover -s scripts -p 'test_*.py' -v
+      - name: Unit, graph and validator regression tests
+        run: dotnet test ArchPulse.sln --no-build --configuration Release --logger 'trx;LogFileName=archpulse-tests.trx'
+      - name: Offline foundation validation - native .NET
+        run: dotnet run --project tooling/ArchPulse.RepositoryValidator --no-build --configuration Release
+      - name: Offline S/T/R traceability validation - native .NET
+        run: dotnet run --project tooling/ArchPulse.TraceabilityValidator --no-build --configuration Release
