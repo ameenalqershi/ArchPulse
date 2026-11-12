@@ -1,0 +1,82 @@
+{
+  "schema": "archpulse-agent-handoff/v1",
+  "taskId": "T117",
+  "specification": "S25",
+  "status": "review",
+  "repository": "https://github.com/ameenalqershi/ArchPulse",
+  "branch": "chore/validate-agent-handoffs-20261110",
+  "baseCommit": "6602183884bfb7b6dcd24803fb1d5db1ccdc28db",
+  "workingCommit": "de58005e5c872a77ced60ce457a0aaf54c2d40e9",
+  "lastVerifiedAction": "2026-11-10: GitHub Actions Foundation CI run 42872321352 succeeded for PR #25 code commit de58005e5c872a77ced60ce457a0aaf54c2d40e9, including foundation-build-test and foundation-document-check; isolated VPS clone independently rebuilt and tested same commit.",
+  "completedSteps": [
+    "Confirmed existing public main 6602183 and active foundation ruleset without editing main",
+    "Read S25 and S11 and reconciled prior historical foundation checkpoints",
+    "Added a Python standard-library handoff validation script and 12 contract tests",
+    "Linked handoff validation into foundation-document-check and AGENTS.md",
+    "Created remote branch and opened PR #25; verified published SHA de58005e5c872a77ced60ce457a0aaf54c2d40e9",
+    "Verified CI success on exact PR code SHA via GitHub Actions job records",
+    "Verified fresh clone on authorized VPS: Python 28/28, .NET 4/4, 0 build warnings/errors"
+  ],
+  "unverifiedSteps": [
+    "Obtain independent human review and authorized merge of PR #25",
+    "Rerun GitHub CI on checkpoint-documentation commit (this record is added after passing code commit)",
+    "Perform independent agent B takeover exercise; do not claim T118 complete",
+    "Run comprehensive dependency-license, vulnerability and secret scanning review",
+    "Reassess Notion task T117 only after its full S25 criteria are evidenced"
+  ],
+  "changedFiles": [
+    "scripts/validate_handoffs.py",
+    "scripts/test_handoff_validation.py",
+    ".github/workflows/ci.yml",
+    "AGENTS.md",
+    "docs/operations/agent-handoff/README.md",
+    "docs/operations/agent-handoff/T117-PR25-2026-11-10.json"
+  ],
+  "testResults": [
+    "GitHub Actions run https://github.com/ameenalqershi/ArchPulse/actions/runs/42872321352: two foundation jobs succeeded for de58005e5c872a77ced60ce457a0aaf54c2d40e9",
+    "VPS fresh clone at code commit de58005e5c872a77ced60ce457a0aaf54c2d40e9: python3 scripts/validate_foundation.py passed",
+    "VPS fresh clone: python3 scripts/validate_traceability.py passed (34 proposed specifications, 205 tasks, 192 requirement rows)",
+    "VPS fresh clone: python3 scripts/validate_handoffs.py passed",
+    "VPS fresh clone: Python unittest discovery passed 28/28",
+    "VPS fresh clone: dotnet restore --locked-mode passed; Release build passed (0 errors/warnings); .NET tests passed 4/4"
+  ],
+  "pullRequests": [
+    "https://github.com/ameenalqershi/ArchPulse/pull/25"
+  ],
+  "externalEffects": [
+    {
+      "action": "create-github-branch",
+      "target": "chore/validate-agent-handoffs-20261110",
+      "state": "verified",
+      "receipt": "https://github.com/ameenalqershi/ArchPulse/tree/chore/validate-agent-handoffs-20261110"
+    },
+    {
+      "action": "publish-github-commit",
+      "target": "de58005e5c872a77ced60ce457a0aaf54c2d40e9",
+      "state": "verified",
+      "receipt": "https://github.com/ameenalqershi/ArchPulse/commit/de58005e5c872a77ced60ce457a0aaf54c2d40e9"
+    },
+    {
+      "action": "create-github-pr",
+      "target": "25",
+      "state": "verified",
+      "receipt": "https://github.com/ameenalqershi/ArchPulse/pull/25"
+    }
+  ],
+  "knownBlockers": [
+    "VPS gh CLI is unauthenticated; GitHub connector performs authorized writes",
+    "Independent second-agent recovery rehearsal remains unperformed",
+    "No independent human reviewer is assigned; active branch ruleset currently requires zero approvals"
+  ],
+  "risks": [
+    "Passing JSON structural checks cannot prove authenticity of external tool effects or absence of all secrets",
+    "The exact commit containing this checkpoint requires its own GitHub CI verification",
+    "S11 runtime continuity implementation is not complete and must not be conflated with the S25 developer handoff procedure"
+  ],
+  "nextSafeAction": "Fetch latest PR #25 HEAD and both GitHub Foundation CI job conclusions after this checkpoint commit; then request independent review, keeping Notion task T117 unverified until full acceptance.",
+  "requiredCapabilities": [
+    "GitHub repository read/write and Actions read",
+    "Notion S25/T117 authoritative source read",
+    "Authorized Linux VPS or comparable clean .NET 10 and Python 3 environment"
+  ]
+}

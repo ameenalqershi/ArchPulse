@@ -2,14 +2,8 @@
   "version": 1,
   "dependencies": {
     "net10.0": {
-      "archpulse.core": {
-        "type": "Project"
-      },
       "archpulse.graph": {
-        "type": "Project",
-        "dependencies": {
-          "ArchPulse.Core": "[1.0.0, )"
-        }
+        "type": "Project"
       }
     }
   }

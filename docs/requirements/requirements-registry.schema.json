@@ -1,0 +1,307 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ArchPulse Proposed Requirements Registry v1",
+  "description": "Machine-readable proposed full-product S26 snapshot. It does not certify implementation, acceptance, or live Notion synchronization.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "basis",
+    "counts",
+    "requirements"
+  ],
+  "properties": {
+    "schema": {
+      "const": "archpulse-requirements-registry/v1"
+    },
+    "basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceSpecification",
+        "sourceNotionUrl",
+        "sourceLastEditedUtc",
+        "contentSha256",
+        "status",
+        "notLiveSynchronized"
+      ],
+      "properties": {
+        "sourceSpecification": {
+          "const": "S26"
+        },
+        "sourceNotionUrl": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://app\\.notion\\.com/p/"
+        },
+        "sourceLastEditedUtc": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "contentSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "status": {
+          "const": "Proposed"
+        },
+        "notLiveSynchronized": {
+          "const": true
+        }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "specifications",
+        "tasks",
+        "requirements",
+        "requirementFamilies"
+      ],
+      "properties": {
+        "specifications": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tasks": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "requirements": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "requirementFamilies": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "requirements": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/requirement"
+      }
+    }
+  },
+  "$defs": {
+    "specification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "notionUrl",
+        "domain",
+        "priority",
+        "approval"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^S[0-9]{2}$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "notionUrl": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://app\\.notion\\.com/p/"
+        },
+        "domain": {
+          "type": "string",
+          "minLength": 1
+        },
+        "priority": {
+          "enum": [
+            "P0",
+            "P1",
+            "P2"
+          ]
+        },
+        "approval": {
+          "enum": [
+            "Proposed",
+            "In Review",
+            "Approved"
+          ]
+        }
+      }
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "sourceSpecification",
+        "notionUrl",
+        "dependencies",
+        "status",
+        "gate",
+        "priority"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^T[0-9]{3}$"
+        },
+        "sourceSpecification": {
+          "type": "string",
+          "pattern": "^S[0-9]{2}$"
+        },
+        "notionUrl": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://app\\.notion\\.com/p/"
+        },
+        "dependencies": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^T[0-9]{3}$"
+          }
+        },
+        "status": {
+          "enum": [
+            "Planned",
+            "Ready",
+            "In Progress",
+            "Blocked",
+            "In Review"
+          ]
+        },
+        "gate": {
+          "enum": [
+            "Architecture",
+            "Core",
+            "Integrated",
+            "Production",
+            "Ecosystem"
+          ]
+        },
+        "priority": {
+          "enum": [
+            "P0",
+            "P1",
+            "P2"
+          ]
+        }
+      }
+    },
+    "requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "behavior",
+        "source",
+        "candidateOwnerSpecification",
+        "ownershipApproval",
+        "linkedSpecificationIds",
+        "linkedTasks",
+        "scope",
+        "evidence"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^R-[A-Z][A-Z0-9-]*-[0-9]{3}$"
+        },
+        "behavior": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "specification",
+            "notionUrl"
+          ],
+          "properties": {
+            "specification": {
+              "const": "S26"
+            },
+            "notionUrl": {
+              "type": "string",
+              "format": "uri",
+              "pattern": "^https://app\\.notion\\.com/p/"
+            }
+          }
+        },
+        "candidateOwnerSpecification": {
+          "$ref": "#/$defs/specification"
+        },
+        "ownershipApproval": {
+          "const": "Pending"
+        },
+        "linkedSpecificationIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^S[0-9]{2}$"
+          }
+        },
+        "linkedTasks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/task"
+          }
+        },
+        "scope": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "productTarget",
+            "designApproval",
+            "implementation",
+            "verification"
+          ],
+          "properties": {
+            "productTarget": {
+              "const": "MandatoryFullProduct"
+            },
+            "designApproval": {
+              "const": "Proposed"
+            },
+            "implementation": {
+              "enum": [
+                "Planned",
+                "Unknown"
+              ]
+            },
+            "verification": {
+              "const": "Unknown"
+            }
+          }
+        },
+        "evidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "expected",
+            "receipts"
+          ],
+          "properties": {
+            "expected": {
+              "type": "string",
+              "minLength": 1
+            },
+            "receipts": {
+              "type": "array",
+              "maxItems": 0
+            }
+          }
+        }
+      }
+    }
+  }
+}

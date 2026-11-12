@@ -1,1 +1,7 @@
-<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType></PropertyGroup><ItemGroup><ProjectReference Include="../../../engine/ArchPulse.Roslyn/ArchPulse.Roslyn.csproj" /></ItemGroup></Project>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <Description>Offline command-line Roslyn graph indexing with source provenance.</Description>
+  </PropertyGroup>
+  <ItemGroup><ProjectReference Include="../../../engine/ArchPulse.Roslyn/ArchPulse.Roslyn.csproj"/><ProjectReference Include="../../../engine/ArchPulse.Guardian/ArchPulse.Guardian.csproj"/></ItemGroup>
+</Project>

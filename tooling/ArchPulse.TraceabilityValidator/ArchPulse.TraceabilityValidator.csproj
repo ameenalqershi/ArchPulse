@@ -1,1 +1,6 @@
-<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType></PropertyGroup><ItemGroup><ProjectReference Include="../ArchPulse.Tooling/ArchPulse.Tooling.csproj" /></ItemGroup></Project>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <Description>Offline C# validation of ArchPulse specification/task/requirement references.</Description>
+  </PropertyGroup>
+</Project>

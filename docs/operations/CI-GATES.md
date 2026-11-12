@@ -1,23 +1,49 @@
-# Native .NET Foundation CI — 2026-11-12
+# Foundation CI and future quality gates
 
-The two current required GitHub checks are named foundation-build-test and foundation-document-check, enforced by main ruleset 26926696. The initial native .NET workflow succeeded on [run 43248347098](https://github.com/ameenalqershi/ArchPulse/actions/runs/43248347098) for PR #31 commit ae8272ba712308280f498ea044503d426587c7f3. This validates the native CI path on that exact revision, not production features or any later commit.
+## Native .NET migration
 
-## Actual gates
-- foundation-build-test: pinned checkout and .NET 10 SDK actions; locked restore, Release build, all C# unit/integration tests (28 locally), pinned Node 24 setup and locked Web Studio TypeScript production build.
-- foundation-document-check: pinned checkout and SDK setup; locked restore/build; .NET RepositoryValidator for files/licenses/SPDX/links and .NET TraceabilityValidator for historical S/T/R registry references, DAG and statuses.
-- GitHub Actions permissions: contents read; checkout credentials not persisted; no Python runtime required by either job.
+The merged main-branch Foundation CI contains the following required jobs:
 
-## Future unimplemented gates
-Complete architecture Guardian policy enforcement, security and license audit, SBOM, secrets, untrusted-code sandbox, endpoint auth, runtime tracing, MCP integration, Futures, production release and multi-repository E2E performance validation remain distinct work. Other CodeQL jobs may exist independently and must be evaluated on each exact commit.
+- foundation-build-test: locked restore, Release build, all xUnit tests,
+  MCP protocol smoke, repository/handoff/traceability checks, and proposed
+  offline native C# NuGet metadata audit.
+- foundation-document-check: independent locked restore and native .NET
+  repository, handoff and traceability validators.
 
-## Reproduce locally
-```bash
-dotnet restore ArchPulse.sln --locked-mode
-dotnet build ArchPulse.sln -c Release --no-restore
-dotnet test ArchPulse.sln -c Release --no-build --no-restore
-dotnet run --project tooling/ArchPulse.RepositoryValidator -c Release --no-build
-dotnet run --project tooling/ArchPulse.TraceabilityValidator -c Release --no-build
-(cd apps/web-studio && npm ci --ignore-scripts && npm run build)
-```
+The names of **both** jobs are retained exactly because the active GitHub
+ruleset 26926696 for main requires them. In the past, document checks used
+Python. That dependency has been removed from the active workflow.
 
-Never add newly required check names to main ruleset before verifying an actual run. The pre-rebuild [run 42758731375](https://github.com/ameenalqershi/ArchPulse/actions/runs/42758731375) was Python-based and is historical evidence only.
+The migration's first PR head 1e01c2600e60a8e3bc036a212116996ee301c9e1
+passed GitHub Actions run 43246261098 (21 tests). The handoff-parity
+commit 60c2da6394a975455d838d3ff70e9552db6485b7 passed GitHub Actions
+run 43247535851 (28 tests). Both runs preceded this final Python-removal
+patch: **do not consider this cleanup verified until a new hosted run
+passes at its exact SHA**.
+
+GitHub job tokens only have contents: read, and checkout credentials are
+not persisted. This CI passing does not certify product completion.
+
+## Local reproduction
+
+    dotnet restore ArchPulse.sln --locked-mode
+    dotnet build ArchPulse.sln -c Release --no-restore
+    dotnet test ArchPulse.sln -c Release --no-build
+    dotnet run --project tooling/ArchPulse.RepositoryValidator -c Release --no-build
+    dotnet run --project tooling/ArchPulse.TraceabilityValidator -c Release --no-build
+
+## Proposed later gates (not active yet)
+
+Static analyzers, formatting, architecture policy conformance, comprehensive
+third-party license clearance and SBOM; CodeQL/secrets/vulnerability scans; isolated
+integration tests, benchmarks, accessibility; release signing and
+artifact provenance. Never present them as implemented/green without
+actual workflow evidence or configure them as required checks before
+their first successful GitHub run.
+
+References: S16, S17, S19, S20 and the
+[rebuild report](REBUILD-2026-11-12.md).
+
+## Native license metadata proposal (PR after T104 merge)
+
+The added .NET audit reads only restored local NuGet package metadata and committed lockfiles. A documented URL-only legacy license exception is reported as a pending manual review; ordinary audit success does **not** certify license compatibility, while a separate --require-complete option intentionally fails before release until the exception is resolved. Hosted CI on this PR must confirm the gate; Python legacy scripts are not used by this gate.

@@ -1,1 +1,9 @@
-<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType></PropertyGroup><ItemGroup><ProjectReference Include="../ArchPulse.Tooling/ArchPulse.Tooling.csproj" /></ItemGroup></Project>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <Description>Deterministic, offline repository structure and document validation.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../ArchPulse.TraceabilityValidator/ArchPulse.TraceabilityValidator.csproj" />
+  </ItemGroup>
+</Project>

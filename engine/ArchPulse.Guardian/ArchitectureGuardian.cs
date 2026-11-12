@@ -3,78 +3,100 @@ using ArchPulse.Graph;
 
 namespace ArchPulse.Guardian;
 
-public enum ArchitectureVerdict { Pass, Violation, Unknown }
-public enum ViolationSeverity { Info, Warning, Error, Blocker }
+public enum RuleSeverity { Warning, Error, Blocker }
+public enum RuleOutcome { Violation, Waived, Unknown, NotEvaluated }
 
+/// <summary>
+/// A policy prohibits one or more source-backed directed relations between concrete projects.
+/// This first slice deliberately does NOT claim to detect indirect runtime execution.
+/// </summary>
 public sealed record ForbiddenDependencyRule(
-    string Id, int Version, GraphEdgeKind EdgeKind,
-    string FromSymbolPrefix, string ToSymbolPrefix,
-    ViolationSeverity Severity, bool Enabled = true);
+    string Id, string Version, string FromProject, string ToProject,
+    string Relation, RuleSeverity Severity, bool Enabled = true);
 
-/// <summary>Scoped, human-approved and time-limited exception to one exact finding.</summary>
-public sealed record ArchitectureWaiver(
-    string RuleId, string EdgeId, string ApprovedBy, string Justification, DateTimeOffset ExpiresAt);
+public sealed record HumanWaiver(
+    string RuleId, string EdgeId, string Approver, string Justification, DateTimeOffset ExpiresAt);
 
-public sealed record ArchitectureViolation(
-    string RuleId, int RuleVersion, string EdgeId,
-    string SourceNodeId, string TargetNodeId, ViolationSeverity Severity,
-    SourceSpan? Witness, bool Waived, string Explanation);
-
-public sealed record ArchitectureEvaluation(
-    ArchitectureVerdict Verdict,
-    IReadOnlyList<ArchitectureViolation> Findings,
-    IReadOnlyList<string> UnknownReasons)
-{
-    public bool BlocksCi => Findings.Any(x => !x.Waived && x.Severity is ViolationSeverity.Error or ViolationSeverity.Blocker);
-}
+public sealed record ArchitectureFinding(
+    string RuleId, string RuleVersion, RuleSeverity Severity,
+    RuleOutcome Outcome, string? EdgeId, string? FromSymbolId,
+    string? ToSymbolId, SourceEvidence? Evidence, string Explanation);
 
 public static class ArchitectureGuardian
 {
-    /// <summary>Deterministic rules over symbol-resolved edges; absence of analysis evidence is Unknown.</summary>
-    public static ArchitectureEvaluation Evaluate(
-        GraphSnapshot snapshot, IEnumerable<ForbiddenDependencyRule> rules,
-        IEnumerable<ArchitectureWaiver>? waivers = null,
-        DateTimeOffset? evaluatedAtUtc = null)
+    public static IReadOnlyList<ArchitectureFinding> Evaluate(
+        GraphSnapshot snapshot,
+        IEnumerable<ForbiddenDependencyRule> policies,
+        IReadOnlyCollection<HumanWaiver>? waivers = null,
+        DateTimeOffset? evaluationTime = null)
     {
-        var integrity = snapshot.VerifyIntegrity();
-        var unknown = snapshot.Diagnostics.Concat(integrity).ToList();
-        var now = evaluatedAtUtc ?? DateTimeOffset.UtcNow;
-        var activeWaivers = (waivers ?? []).Where(w => w.ExpiresAt > now &&
-            !string.IsNullOrWhiteSpace(w.ApprovedBy) &&
-            !string.IsNullOrWhiteSpace(w.Justification)).ToArray();
-        var nodes = snapshot.Nodes.ToDictionary(n => n.Id, StringComparer.Ordinal);
-        var findings = new List<ArchitectureViolation>();
+        GraphSnapshotStore.Validate(snapshot);
+        var rules = policies.ToArray();
+        var now = evaluationTime ?? DateTimeOffset.UtcNow;
+        var result = new List<ArchitectureFinding>();
+        var projectIds = snapshot.Nodes.Where(n => n.Kind == GraphNodeKind.Project)
+            .Select(n => (Id: n.SymbolId, Name: n.Label)).ToArray();
+        var projectNames = projectIds.Select(p => p.Name).ToHashSet(StringComparer.Ordinal);
+
         foreach (var rule in rules.Where(r => r.Enabled))
         {
-            if (string.IsNullOrWhiteSpace(rule.Id) || rule.Version < 1 ||
-                string.IsNullOrWhiteSpace(rule.FromSymbolPrefix) ||
-                string.IsNullOrWhiteSpace(rule.ToSymbolPrefix))
+            if (string.IsNullOrWhiteSpace(rule.Id) || string.IsNullOrWhiteSpace(rule.Version)
+                || string.IsNullOrWhiteSpace(rule.FromProject) || string.IsNullOrWhiteSpace(rule.ToProject)
+                || string.IsNullOrWhiteSpace(rule.Relation))
+                throw new ArgumentException("Policy ID, version, project names and relation are required.");
+            if (!projectNames.Contains(rule.FromProject) || !projectNames.Contains(rule.ToProject))
             {
-                unknown.Add("Invalid policy with missing ID, version or selectors.");
+                result.Add(new ArchitectureFinding(rule.Id, rule.Version, rule.Severity,
+                    RuleOutcome.NotEvaluated, null, null, null, null,
+                    "One or both projects are absent from this revision; rule cannot be evaluated."));
                 continue;
             }
-            foreach (var edge in snapshot.Edges.Where(e => e.Kind == rule.EdgeKind))
+
+            var matches = snapshot.Edges.Where(edge =>
+                edge.Relation == rule.Relation
+                && IsOwnedBy(edge.FromSymbolId, rule.FromProject)
+                && IsOwnedBy(edge.ToSymbolId, rule.ToProject)).ToArray();
+
+            if (matches.Length == 0)
             {
-                if (!nodes.TryGetValue(edge.From, out var from) ||
-                    !nodes.TryGetValue(edge.To, out var to))
+                result.Add(new ArchitectureFinding(rule.Id, rule.Version, rule.Severity,
+                    RuleOutcome.NotEvaluated, null, null, null, null,
+                    "No matching static relation found. This does not prove the absence of dynamic calls."));
+                continue;
+            }
+
+            foreach (var edge in matches)
+            {
+                var evidence = edge.Evidence;
+                var trustworthy = evidence.Kind is EvidenceKind.Static or EvidenceKind.Observed or EvidenceKind.Verified;
+                if (!trustworthy)
                 {
-                    unknown.Add($"Cannot evaluate dangling edge {edge.Id}");
+                    result.Add(new ArchitectureFinding(rule.Id, rule.Version, rule.Severity,
+                        RuleOutcome.Unknown, edge.EdgeId, edge.FromSymbolId, edge.ToSymbolId, evidence,
+                        "Inferred or designed relation cannot establish a proven policy violation."));
                     continue;
                 }
-                var fromKey = from.Evidence.SymbolKey ?? string.Empty;
-                var toKey = to.Evidence.SymbolKey ?? string.Empty;
-                if (!fromKey.StartsWith(rule.FromSymbolPrefix, StringComparison.Ordinal) ||
-                    !toKey.StartsWith(rule.ToSymbolPrefix, StringComparison.Ordinal))
-                    continue;
-                var waived = activeWaivers.Any(w => w.RuleId == rule.Id && w.EdgeId == edge.Id);
-                findings.Add(new ArchitectureViolation(
-                    rule.Id, rule.Version, edge.Id, edge.From, edge.To, rule.Severity,
-                    edge.Evidence.Source, waived,
-                    $"{from.Name} {rule.EdgeKind} {to.Name} violates {rule.Id} v{rule.Version}"));
+
+                var waiver = waivers?.FirstOrDefault(w =>
+                    w.RuleId == rule.Id && w.EdgeId == edge.EdgeId
+                    && !string.IsNullOrWhiteSpace(w.Approver)
+                    && !string.IsNullOrWhiteSpace(w.Justification)
+                    && w.ExpiresAt > now);
+
+                result.Add(new ArchitectureFinding(rule.Id, rule.Version, rule.Severity,
+                    waiver is null ? RuleOutcome.Violation : RuleOutcome.Waived,
+                    edge.EdgeId, edge.FromSymbolId, edge.ToSymbolId, evidence,
+                    waiver is null
+                        ? $"Forbidden {edge.Relation} relation is supported by {evidence.Kind} evidence at " +
+                          $"{evidence.RelativeFile}:{evidence.Line} ({snapshot.Revision})."
+                        : $"Time-limited waiver by {waiver.Approver}; expires {waiver.ExpiresAt:O}."));
             }
         }
-        var verdict = findings.Any(f => !f.Waived) ? ArchitectureVerdict.Violation :
-            unknown.Count > 0 ? ArchitectureVerdict.Unknown : ArchitectureVerdict.Pass;
-        return new ArchitectureEvaluation(verdict, findings, unknown);
+        return result.OrderBy(f => f.RuleId, StringComparer.Ordinal)
+            .ThenBy(f => f.EdgeId, StringComparer.Ordinal).ToArray();
     }
+
+    private static bool IsOwnedBy(string symbolId, string projectName) =>
+        symbolId == $"project:{projectName}" ||
+        symbolId.StartsWith(projectName + "::", StringComparison.Ordinal);
 }

@@ -1,46 +1,83 @@
 // SPDX-License-Identifier: Apache-2.0
-using System.Text.Json;
+using System.Text.Json.Serialization;
 using ArchPulse.Graph;
+using ArchPulse.Guardian;
 
 var builder = WebApplication.CreateBuilder(args);
-// The initial snapshot API is intentionally loopback-only until identity/RBAC is implemented.
-builder.WebHost.UseUrls("http://127.0.0.1:5127");
-builder.Services.AddCors(options => options.AddPolicy("LocalStudio", p => p
-    .WithOrigins("http://127.0.0.1:5173", "http://localhost:5173")
-    .AllowAnyHeader().WithMethods("GET")));
+
+// Security boundary for this first milestone:
+// Only local loopback, read-only graph; no remote client auth implemented.
+builder.WebHost.UseUrls("http://127.0.0.1:5217");
+builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 131072);
+builder.Services.ConfigureHttpJsonOptions(o =>
+    o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+
+builder.Services.AddSingleton(provider =>
+{
+    var config = provider.GetRequiredService<IConfiguration>();
+    string path = config["ARCHPULSE_GRAPH_STORE"]
+        ?? Path.Combine(Path.GetTempPath(), "archpulse-graph");
+    return new GraphSnapshotStore(path);
+});
 var app = builder.Build();
-var path = app.Configuration["ARCHPULSE_GRAPH_PATH"];
-if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
-    throw new InvalidOperationException("ARCHPULSE_GRAPH_PATH must point to a real indexed GraphSnapshot JSON.");
-var snapshot = JsonSerializer.Deserialize<GraphSnapshot>(await File.ReadAllTextAsync(path))
-    ?? throw new InvalidOperationException("Snapshot JSON cannot be decoded.");
-var integrity = snapshot.VerifyIntegrity();
-if (integrity.Count != 0)
-    throw new InvalidOperationException("Cannot serve invalid graph: " + string.Join("; ", integrity));
-app.UseCors("LocalStudio");
+
 app.MapGet("/health", () => Results.Ok(new
 {
-    status = "loaded",
-    revision = snapshot.Revision,
-    nodes = snapshot.Nodes.Count,
-    edges = snapshot.Edges.Count,
-    diagnostics = snapshot.Diagnostics.Count,
-    note = "Loaded static snapshot, not live indexing"
+    Service = "ArchPulse.GraphReadApi",
+    Scope = "local-read-only-experimental",
+    ProductionReady = false
 }));
-app.MapGet("/api/v1/graph", () => Results.Ok(snapshot));
-app.MapGet("/api/v1/graph/mermaid", () => Results.Text(snapshot.ToMermaid(), "text/plain"));
-app.MapGet("/api/v1/graph/nodes/{id}", (string id) =>
+
+app.MapGet("/api/graphs/{project}/{revision}", (GraphSnapshotStore store,
+    string project, string revision) =>
 {
-    var node = snapshot.Nodes.FirstOrDefault(n => n.Id == id);
-    if (node == null) return Results.NotFound();
-    return Results.Ok(new
-    {
-        revision = snapshot.Revision,
-        node,
-        incoming = snapshot.Edges.Where(e => e.To == id).ToArray(),
-        outgoing = snapshot.Edges.Where(e => e.From == id).ToArray()
-    });
+    var graph = store.Load(project, revision);
+    return graph is null ? Results.NotFound() : Results.Ok(graph);
 });
+
+app.MapGet("/api/graphs/{project}/{revision}/neighbors",
+    (GraphSnapshotStore store, string project, string revision, string symbolId) =>
+    {
+        var graph = store.Load(project, revision);
+        if (graph is null) return Results.NotFound();
+        try { return Results.Ok(GraphQueries.Neighbors(graph, symbolId)); }
+        catch (KeyNotFoundException) { return Results.NotFound(); }
+    });
+
+app.MapGet("/api/graphs/{project}/{revision}/path",
+    (GraphSnapshotStore store, string project, string revision, string from, string to) =>
+    {
+        var graph = store.Load(project, revision);
+        if (graph is null) return Results.NotFound();
+        try { return Results.Ok(GraphQueries.ShortestStaticPath(graph, from, to, maxVisited: 5000)); }
+        catch (KeyNotFoundException) { return Results.NotFound(); }
+        catch (InvalidOperationException) { return Results.Problem("Traversal safety limit reached.", statusCode: 422); }
+    });
+
+app.MapGet("/api/graphs/{project}/diff",
+    (GraphSnapshotStore store, string project, string from, string to) =>
+    {
+        var previous = store.Load(project, from);
+        var current = store.Load(project, to);
+        if (previous is null || current is null) return Results.NotFound();
+        return Results.Ok(GraphSnapshotStore.Compare(previous, current));
+    });
+
+app.MapPost("/api/guardian/evaluate",
+    (GraphSnapshotStore store, GuardianEvaluationRequest request) =>
+    {
+        if (request.Rules is null || request.Rules.Length == 0 || request.Rules.Length > 100)
+            return Results.BadRequest(new { Error = "Supply between 1 and 100 explicit rules." });
+        var graph = store.Load(request.Project, request.Revision);
+        if (graph is null) return Results.NotFound();
+        return Results.Ok(ArchitectureGuardian.Evaluate(graph, request.Rules));
+    });
+
+// No graph mutation, arbitrary command execution, untrusted indexing,
+// AI calls, CORS wildcard, public bind or bypass endpoint.
 app.Run();
 
-public partial class Program;
+public sealed record GuardianEvaluationRequest(
+    string Project, string Revision, ForbiddenDependencyRule[] Rules);
+
+public partial class Program { }

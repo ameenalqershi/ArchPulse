@@ -1,1 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk"><ItemGroup><ProjectReference Include="../ArchPulse.Graph/ArchPulse.Graph.csproj" /></ItemGroup></Project>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><Description>Evidence-scoped architecture policy evaluation.</Description></PropertyGroup>
+  <ItemGroup><ProjectReference Include="../ArchPulse.Graph/ArchPulse.Graph.csproj"/></ItemGroup>
+</Project>

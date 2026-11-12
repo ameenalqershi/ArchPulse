@@ -12,7 +12,7 @@
 
 ## Commands and environment
 
-Requires .NET 10 SDK. `dotnet restore ArchPulse.sln`; `dotnet build ArchPulse.sln --no-restore -c Release`; `dotnet test ArchPulse.sln --no-build -c Release`. These commands are unverified until a real SDK run is recorded. Do not add fake projects for unimplemented modules.
+Requires .NET 10 SDK. `dotnet restore ArchPulse.sln --locked-mode`; `dotnet build ArchPulse.sln --no-restore -c Release`; `dotnet test ArchPulse.sln --no-build -c Release`. Use the canonical native validators: `dotnet run --project tooling/ArchPulse.RepositoryValidator` and `dotnet run --project tooling/ArchPulse.TraceabilityValidator`. For local NuGet metadata checks run `dotnet run --project tooling/ArchPulse.LicenseAudit -- --repo .`. Python governance scripts in scripts/ are legacy/optional, not the native core or primary CI. Do not infer license clearance or product completion from passing foundation checks.
 
 ## Start/resume checklist
 
@@ -31,5 +31,43 @@ See [handoff protocol](docs/operations/agent-handoff/README.md) and [schema](doc
 
 The original foundation checkpoint is historical and contains formerly pending remote actions. Review the latest [foundation verification ledger](docs/operations/FOUNDATION-VERIFICATION.md) and [2026-11-10 audit handoff](docs/operations/agent-handoff/FOUNDATION-AUDIT-2026-11-10.json), then independently query the latest GitHub branch, ruleset and CI before changing anything. Also read the [CI gate policy](docs/operations/CI-GATES.md) and unresolved [name/branding risk](docs/operations/BRANDING-RISK.md).
 
-## 2026-11-12 isolated native .NET rebuild
-Follow docs/operations/REBUILD-STATUS-2026-11-12.md and docs/operations/agent-handoff/REBUILD-2026-11-12.json. The branch rebuild/dotnet-native-foundation-20261112 is unmerged experimental engineering work, not a completed product. Never edit another agent worktree, bypass main protection, or confuse Proposed Notion specs with implemented work. Use dotnet restore --locked-mode, dotnet build -c Release, dotnet test -c Release and both tooling validators. Build apps/web-studio using npm ci --ignore-scripts and npm run build. Current API is intentionally loopback-only; do not expose it before proper authentication. Initial native CI passed on the published PR head ae8272ba712308280f498ea044503d426587c7f3; Python retirement is now proposed in a second reviewable commit. Recheck current-head CI before calling migration complete.
+## Rebuild branch handoff (2026-11-12)
+
+The initial .NET-native work was integrated into main via PR #30 and stacked PRs #32–#35; historical rebuild branches are not current source-of-truth.
+See docs/operations/REBUILD-2026-11-12.md,
+docs/operations/agent-handoff/REBUILD-2026-11-12.md and
+docs/guides/dotnet-native-cli.md. Never claim proposed S00–S33
+requirements are verified merely from foundation CI or the limited first
+Roslyn graph. Preserve existing agent work/PRs and do not rewrite main.
+
+## Experimental graph indexing milestone — 2026-11-12
+
+The rebuild branch also contains a real MSBuildWorkspace solution
+indexer, immutable JSON graph snapshots, evidence-scoped queries and
+preliminary ArchitectureGuardian rules. Read the .NET CLI guide and
+proposed ADR-0001. NEVER load untrusted MSBuild projects on the shared
+VPS. The waiver approver text is not verified identity and cannot
+authorize a protected change. S02/S03/S04/S15 remain incomplete.
+
+## Read-only local API milestone
+
+An experimental ASP.NET Core server exposes stored Graph queries on
+127.0.0.1:5217. See docs/guides/local-graph-api.md. The server is
+unauthenticated and must NEVER be publicly exposed. It cannot execute
+code or commit changes. Native C# MCP Apps and React Studio prototypes are now merged, but real ChatGPT host verification, identity and production API authorization remain incomplete.
+
+## Experimental React Web Studio
+
+The integrated Web Studio prototype lives in apps/web-studio. It only loads
+source-backed graph JSON by exact project and revision from the
+loopback-only ASP.NET API and never makes up nodes or traces.
+Do not treat it as a fully accepted S09/S27 studio or remotely expose
+its unauthenticated local servers. See apps/web-studio/README.md.
+
+## Native .NET MCP Apps experiment
+
+The merged experimental native MCP implementation contains server/ArchPulse.McpServer
+(5 read-only tools plus ui://archpulse/graph). Never expose or tunnel
+the unauthenticated 127.0.0.1:5231 endpoint. Do not claim that tests
+in an MCP Apps host simulator demonstrate ChatGPT product integration.
+See docs/guides/mcp-apps-local.md. Full S29/S30 acceptance pending.

@@ -1,87 +1,94 @@
 // SPDX-License-Identifier: Apache-2.0
-using ArchPulse.Core;
 using ArchPulse.Graph;
 using ArchPulse.Guardian;
 using Xunit;
 
 namespace ArchPulse.Guardian.Tests;
 
-public class ArchitectureGuardianTests
+public sealed class ArchitectureGuardianTests
 {
-    private const string Sha = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
-    private static readonly ForbiddenDependencyRule Rule = new(
-        "AP-BOUNDARY-001", 1, GraphEdgeKind.Calls,
-        "M:Example.Domain.", "M:Example.Infrastructure.", ViolationSeverity.Blocker);
-    private static (GraphSnapshot Graph, GraphEdge Edge) Fixture(bool incomplete = false)
+    private static GraphSnapshot Graph(EvidenceKind kind = EvidenceKind.Static)
     {
-        var graph = new GraphBuilder(Sha);
-        var location = new SourceSpan("src/Domain/Order.cs", 10, 5, 10, 20);
-        graph.AddNode(new GraphNode("n1", GraphNodeKind.Method, "Domain.Create",
-            new(Sha, EvidenceKind.Static, "Roslyn", "M:Example.Domain.Order.Create", location)));
-        graph.AddNode(new GraphNode("n2", GraphNodeKind.Method, "Infrastructure.Save",
-            new(Sha, EvidenceKind.Static, "Roslyn", "M:Example.Infrastructure.Store.Save", location)));
-        graph.AddEdge("n1", "n2", GraphEdgeKind.Calls,
-            new(Sha, EvidenceKind.Static, "Roslyn", "M:Example.Infrastructure.Store.Save", location));
-        if (incomplete) graph.AddDiagnostic("Unresolved syntax-only call");
-        var snapshot = graph.Build();
-        return (snapshot, Assert.Single(snapshot.Edges));
+        var evidence = new SourceEvidence("sha1", "Billing.Service/InvoiceService.cs", 12, 3, kind);
+        return new GraphSnapshot("Billing", "sha1",
+        [
+            new("solution:Billing", GraphNodeKind.Solution, "Billing", null, evidence),
+            new("project:Billing.Service", GraphNodeKind.Project, "Billing.Service", "solution:Billing", evidence),
+            new("project:Billing.Contracts", GraphNodeKind.Project, "Billing.Contracts", "solution:Billing", evidence),
+            new("Billing.Service::M:Billing.Service.InvoiceService.CreateInvoice",
+                GraphNodeKind.Method, "CreateInvoice", "project:Billing.Service", evidence),
+            new("Billing.Contracts::M:Billing.Contracts.RateCalculator.Apply",
+                GraphNodeKind.Method, "Apply", "project:Billing.Contracts", evidence)
+        ],
+        [
+            new("call:001",
+                "Billing.Service::M:Billing.Service.InvoiceService.CreateInvoice",
+                "Billing.Contracts::M:Billing.Contracts.RateCalculator.Apply", "Calls", evidence)
+        ], []);
+    }
+
+    private static ForbiddenDependencyRule Rule => new(
+        "NO-SERVICE-CONTRACT-CALL", "v1", "Billing.Service",
+        "Billing.Contracts", "Calls", RuleSeverity.Blocker);
+
+    [Fact]
+    public void SourceBackedForbiddenCallEmitsExplainableViolation()
+    {
+        var finding = Assert.Single(ArchitectureGuardian.Evaluate(Graph(), [Rule]));
+        Assert.Equal(RuleOutcome.Violation, finding.Outcome);
+        Assert.Equal("call:001", finding.EdgeId);
+        Assert.Equal(RuleSeverity.Blocker, finding.Severity);
+        Assert.Equal("sha1", finding.Evidence?.Revision);
+        Assert.Contains("InvoiceService.cs:12", finding.Explanation, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void ForbiddenCallIsLinkedToSourceAndBlocksCi()
+    public void InferredRelationIsUnknownRatherThanProvenViolation()
     {
-        var (graph, edge) = Fixture();
-        var result = ArchitectureGuardian.Evaluate(graph, [Rule]);
-        Assert.Equal(ArchitectureVerdict.Violation, result.Verdict);
-        Assert.True(result.BlocksCi);
-        var finding = Assert.Single(result.Findings);
-        Assert.Equal("AP-BOUNDARY-001", finding.RuleId);
-        Assert.Equal(edge.Id, finding.EdgeId);
-        Assert.Equal("src/Domain/Order.cs", finding.Witness?.File);
+        var finding = Assert.Single(ArchitectureGuardian.Evaluate(Graph(EvidenceKind.Inferred), [Rule]));
+        Assert.Equal(RuleOutcome.Unknown, finding.Outcome);
     }
 
     [Fact]
-    public void ApprovedScopedWaiverTemporarilySuppressesOnlyMatchingFinding()
+    public void ApprovedUnexpiredWaiverDoesNotDeleteEvidence()
     {
-        var (graph, edge) = Fixture();
-        var waiver = new ArchitectureWaiver(Rule.Id, edge.Id, "maintainer",
-            "Temporary change approved in ADR-004", DateTimeOffset.Parse("2027-01-01T00:00:00Z"));
-        var result = ArchitectureGuardian.Evaluate(graph, [Rule], [waiver],
-            DateTimeOffset.Parse("2026-11-12T00:00:00Z"));
-        Assert.Equal(ArchitectureVerdict.Pass, result.Verdict);
-        Assert.False(result.BlocksCi);
-        Assert.True(Assert.Single(result.Findings).Waived);
+        var now = new DateTimeOffset(2026, 11, 12, 0, 0, 0, TimeSpan.Zero);
+        var waiver = new HumanWaiver(Rule.Id, "call:001", "owner", "Approved until migration",
+            now.AddDays(2));
+        var finding = Assert.Single(ArchitectureGuardian.Evaluate(Graph(), [Rule], [waiver], now));
+        Assert.Equal(RuleOutcome.Waived, finding.Outcome);
+        Assert.Equal("call:001", finding.EdgeId);
     }
 
     [Fact]
-    public void ExpiredWaiverIsNotEffective()
+    public void ExpiredWaiverIsStillViolation()
     {
-        var (graph, edge) = Fixture();
-        var waiver = new ArchitectureWaiver(Rule.Id, edge.Id, "maintainer",
-            "Expired", DateTimeOffset.Parse("2026-01-01T00:00:00Z"));
-        var result = ArchitectureGuardian.Evaluate(graph, [Rule], [waiver],
-            DateTimeOffset.Parse("2026-11-12T00:00:00Z"));
-        Assert.True(result.BlocksCi);
-        Assert.False(Assert.Single(result.Findings).Waived);
+        var now = DateTimeOffset.UtcNow;
+        var waiver = new HumanWaiver(Rule.Id, "call:001", "owner", "Expired",
+            now.AddMinutes(-1));
+        Assert.Equal(RuleOutcome.Violation,
+            Assert.Single(ArchitectureGuardian.Evaluate(Graph(), [Rule], [waiver], now)).Outcome);
     }
 
     [Fact]
-    public void AnalysisGapsNeverBecomeFalsePassingAssertions()
+    public void UnknownProjectIsNotEvaluatedNotPass()
     {
-        var (graph, _) = Fixture(incomplete: true);
-        var rule = Rule with { ToSymbolPrefix = "M:Missing." };
-        var result = ArchitectureGuardian.Evaluate(graph, [rule]);
-        Assert.Equal(ArchitectureVerdict.Unknown, result.Verdict);
-        Assert.NotEmpty(result.UnknownReasons);
+        var rule = Rule with { ToProject = "Unknown.Project" };
+        Assert.Equal(RuleOutcome.NotEvaluated,
+            Assert.Single(ArchitectureGuardian.Evaluate(Graph(), [rule])).Outcome);
     }
 
     [Fact]
-    public void FullyAnalyzedGraphWithNoMatchingViolationPasses()
+    public void NonMatchingRelationDoesNotCreateFalseViolation()
     {
-        var (graph, _) = Fixture();
-        var result = ArchitectureGuardian.Evaluate(graph,
-            [Rule with { ToSymbolPrefix = "M:Example.Other." }]);
-        Assert.Equal(ArchitectureVerdict.Pass, result.Verdict);
-        Assert.Empty(result.Findings);
+        var rule = Rule with { Relation = "ObservedCall" };
+        Assert.Equal(RuleOutcome.NotEvaluated,
+            Assert.Single(ArchitectureGuardian.Evaluate(Graph(), [rule])).Outcome);
+    }
+
+    [Fact]
+    public void DisabledRuleDoesNotEmitFindings()
+    {
+        Assert.Empty(ArchitectureGuardian.Evaluate(Graph(), [Rule with { Enabled = false }]));
     }
 }

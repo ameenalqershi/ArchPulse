@@ -1,0 +1,74 @@
+{
+  "schema": "archpulse-agent-handoff/v1",
+  "taskId": "T001",
+  "specification": "S00",
+  "status": "review",
+  "repository": "https://github.com/ameenalqershi/ArchPulse",
+  "branch": "feat/T001-machine-readable-registry-20261112",
+  "baseCommit": "4fdc151839e677af536d3d3cc7217dc7c5afb021",
+  "workingCommit": "02aee102a06a88740475433e2206284c92b6b48a",
+  "lastVerifiedAction": "2026-11-12: GitHub PR #28 opened as stacked child of PR #26; independently fetched published code SHA 02aee10 to clean VPS checkout and passed 35 Python tests, full 192-row Draft 2020-12 JSON Schema validation, locked .NET restore/build and 4 unit tests.",
+  "completedSteps": [
+    "Confirmed public repository owner, branch and active open PR #26; did not create duplicate or alter main.",
+    "Read canonical T001, S00, S01, S26 and current task/specification indices; preserved proposed/unknown status.",
+    "Created isolated worktree for deterministic offline read-only proposed requirement export.",
+    "Added CLI, JSON Schema v1, 10 positive/negative tests and public usage guide.",
+    "Resolved per-requirement candidate owner specification, linked tasks and dependencies for 192 proposed rows; no evidence receipts created.",
+    "Published changes under a new dependent branch; independently re-fetched 02aee102a06a88740475433e2206284c92b6b48a and repeated all local validation.",
+    "Created linked PR #28 targeting the PR #26 branch rather than main."
+  ],
+  "unverifiedSteps": [
+    "Verify CI and CodeQL on actual PR #28 HEAD after this checkpoint commit.",
+    "Independent human review and merge of prerequisite PR #26, then rebase/update #28 against main without losing changes.",
+    "Review candidate owner-specifications semantically against approved S00-S33; current classification has Pending approvals.",
+    "Create evidence-receipt registry only after human design review, with actual test IDs and source revisions, then complete remaining T001 acceptance.",
+    "Do not mark T001 or Notion requirements Verified based on this index/CLI."
+  ],
+  "changedFiles": [
+    "scripts/requirement_registry.py",
+    "scripts/test_requirement_registry.py",
+    "docs/requirements/requirements-registry.schema.json",
+    "docs/requirements/machine-readable-registry.md",
+    "docs/requirements/traceability.md",
+    "docs/operations/agent-handoff/T001-REGISTRY-2026-11-12.json"
+  ],
+  "testResults": [
+    "Verified on independently fetched 02aee102a06a88740475433e2206284c92b6b48a in /opt/archpulse-t001-manifest-remote-check.",
+    "python3 scripts/validate_foundation.py: pass.",
+    "python3 scripts/validate_traceability.py: 34 specs / 205 tasks / 192 requirements, pass.",
+    "python3 scripts/validate_requirement_baseline.py: 192 stable IDs / 21 families, pass.",
+    "python3 scripts/requirement_registry.py: 192 requirements, pass.",
+    "Python unittest discover: 35 passed, 0 failed.",
+    "JSON Schema 2020-12 schema and generated 192-record output: pass with local jsonschema.",
+    ".NET 10.0.114 locked restore pass; Release build 0 warnings / 0 errors; 4 unit tests passed.",
+    "GitHub Actions on PR #28 final head: pending at checkpoint creation (must verify separately)."
+  ],
+  "pullRequests": [
+    "https://github.com/ameenalqershi/ArchPulse/pull/26",
+    "https://github.com/ameenalqershi/ArchPulse/pull/28"
+  ],
+  "externalEffects": [
+    "Created GitHub branch feat/T001-machine-readable-registry-20261112 from verified PR #26 head 4fdc151.",
+    "Created files via authorized GitHub connector; published code snapshot SHA 02aee10.",
+    "Opened new stacked PR #28 targeting chore/T001-requirement-registry-guard-20261110.",
+    "No updates to Notion tasks, GitHub permissions, main branch, protected rulesets, funding or secrets."
+  ],
+  "knownBlockers": [
+    "T001 S00 design approval not yet recorded as human-approved in Notion.",
+    "Prerequisite PR #26 remains unmerged; stacked PR #28 cannot be merged into main safely first.",
+    "One-owner project does not guarantee independent human PR approval."
+  ],
+  "risks": [
+    "The publicly mirrored 192-row index is a historical snapshot; not a live Notion read-through.",
+    "Candidate requirement-family owner mapping requires review; passing tests proves structure, not semantic correctness.",
+    "Schema v1 may need migration planning if used by external agents; requires ADR/review for breaking changes.",
+    "External AI agents may be working on other open PR branches; do not modify their worktrees."
+  ],
+  "nextSafeAction": "Fetch PR #28 HEAD and verify Foundation CI plus CodeQL on exact revision, log final evidence as PR comment; coordinate human review of #26 and #28 in that order, keeping Notion T001 Planned until actual acceptance.",
+  "requiredCapabilities": [
+    "GitHub repository and PR read/write",
+    "GitHub Actions read",
+    "Notion S00/S26/T001 read",
+    "Remote Desktop Commander shell with .NET 10 and Python 3"
+  ]
+}
