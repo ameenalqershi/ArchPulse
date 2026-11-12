@@ -12,12 +12,13 @@ import csv
 import hashlib
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 
 from validate_requirement_baseline import validate as validate_baseline
-from validate_traceability import validate as validate_traceability
+
 
 ROOT = Path(__file__).resolve().parent.parent
 SPECS = re.compile(
@@ -35,6 +36,32 @@ INPUT_FILES = (
 
 class RegistryError(ValueError):
     """A prerequisite or registry invariant did not pass validation."""
+
+
+def validate_traceability(root: Path) -> list[str]:
+    """Use the merged C# traceability validator; never reintroduce the retired Python core."""
+    validator_project = ROOT / "tooling/ArchPulse.TraceabilityValidator/ArchPulse.TraceabilityValidator.csproj"
+    command = [
+        "dotnet", "run", "--project", str(validator_project),
+        "--no-restore", "--", "--root", str(root),
+    ]
+    try:
+        completed = subprocess.run(
+            command, cwd=ROOT, text=True, capture_output=True,
+            check=False, timeout=90,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return [f"Native .NET traceability validator unavailable: {exc}"]
+    if completed.returncode == 0:
+        return []
+    errors = [
+        line.removeprefix("ERROR ").strip()
+        for line in completed.stderr.splitlines() if line.strip()
+    ]
+    return errors or [
+        f"Native .NET traceability validation exited {completed.returncode}: "
+        f"{completed.stdout[-300:]}"
+    ]
 
 
 def _csv(root: Path, name: str) -> list[dict[str, str]]:
