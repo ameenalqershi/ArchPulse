@@ -8,7 +8,8 @@ A legacy metadata exception applies only to a URL-only package whose current `li
 
 A **documented legacy metadata exception** may keep the *metadata-change* gate green while showing a nonzero `pendingManualReviews` count. This is not a conclusion that its license is compatible. It must have an issue, a reason, and the declared primary source for later verification. The stricter `--require-complete` mode deliberately fails while unresolved reviews exist and is a prerequisite to claiming a complete license review or production release readiness.
 
-The canonical audit is now implemented in **C#/.NET** with 12 initial xUnit contract tests, pinned package resolution and a no-network cache reader. The earlier Python script is retained as an optional migration reference, not the engine or release authority.
+The canonical audit is now implemented in **C#/.NET** with 12 initial xUnit contract tests, pinned package resolution and a no-network cache reader. The earlier Python script was retired from the active tree; the original
+implementation remains reviewable through Git history only, not active CI.
 
 ## Reproduce
 

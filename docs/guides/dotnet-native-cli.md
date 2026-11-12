@@ -91,3 +91,15 @@ XML packages. Dependencies were upgraded/pinned to Microsoft.Build
 17.14.28 and System.Security.Cryptography.Xml 10.0.13 without
 suppressing warnings. MSBuild.Locator runtime asset exclusions ensure
 the SDK supplies the MSBuild assemblies. No full license audit yet.
+
+
+## Complete Python tooling retirement (2026-11-12)
+
+After migrating ADR governance, S25 full checkpoint validation and S26
+requirement snapshot integrity to native .NET tooling, all remaining tracked
+Python tool scripts and Python unittest files were retired from scripts/.
+The native NuGet license auditor and existing .NET repository/traceability
+validators continue to be required. Historical Python-backed evidence stays
+in Git history; we do not rewrite dated checkpoint records. The optional
+Python requirement manifest query/export CLI has **not** been ported exactly;
+there is no current support claim for that historical utility.

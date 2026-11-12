@@ -2,11 +2,13 @@
 
 **Status: proposed design index, not implementation evidence.** See [Notion S26](https://app.notion.com/p/4143830ba34d8185a0edc83f974c55cd), [T001](https://app.notion.com/p/4143830ba34d817797f0e03b0551a6bb), and [issue #5](https://github.com/ameenalqershi/ArchPulse/issues/5).
 
-The 192-row public `requirements.csv` is a historical snapshot of Notion, and `requirement-baseline-lock.json` pins the **stable IDs**, the 21 families, and the S27–S33 specialist-specification crosswalk. The existing [native .NET traceability validator](../../tooling/ArchPulse.TraceabilityValidator/TraceabilityChecker.cs) checks graph references and dependency cycles; [the baseline validator](../../scripts/validate_requirement_baseline.py) additionally blocks silent ID replacement, malformed task lists, missing acceptance descriptions, unreviewed family changes, and S27–S33 task/specification mismatch.
+The 192-row public `requirements.csv` is a historical snapshot of Notion, and `requirement-baseline-lock.json` pins the **stable IDs**, the 21 families, and the S27–S33 specialist-specification crosswalk. The existing [native .NET traceability validator](../../tooling/ArchPulse.TraceabilityValidator/TraceabilityChecker.cs) checks graph references and dependency cycles; [native baseline validator](../../tooling/ArchPulse.TraceabilityValidator/RequirementBaselineChecker.cs) additionally blocks silent ID replacement, malformed task lists, missing acceptance descriptions, unreviewed family changes, and S27–S33 task/specification mismatch.
 
 ```sh
-python3 scripts/validate_requirement_baseline.py
-python3 -m unittest discover -s scripts -p 'test_*.py' -v
+dotnet restore ArchPulse.sln --locked-mode
+dotnet build ArchPulse.sln -c Release --no-restore
+dotnet run --project tooling/ArchPulse.TraceabilityValidator -c Release --no-build -- --root . --baseline
+dotnet test tooling/ArchPulse.Tooling.Tests/ArchPulse.Tooling.Tests.csproj -c Release --no-build
 ```
 
 ## Changing the snapshot safely
