@@ -50,3 +50,44 @@ run 43247535851 passed with 28 tests and the .NET implementation.
 The removal commit must also pass both required CI jobs before merging.
 Prior historical evidence receipts remain intact in git history and
 the verified VPS recovery bundle.
+
+## Milestone 2 — real multi-project indexing and graph persistence
+
+This is a locally tested partial S02/S03/S04 implementation, not
+complete product acceptance. MSBuildWorkspace loads a restored trusted
+.sln/.slnx, resolves project references and semantic cross-project
+method calls. An immutable JSON store persists exact graph snapshots
+by project+revision, rejects provenance anomalies, supports idempotent
+writes, evidenced shortest paths, and revision diffs. This is not yet
+SQLite, incremental indexing, or distributed transaction support.
+
+ArchitectureGuardian evaluates forbidden project-to-project relation
+rules against sourced edges and produces a witness with revision and
+source location. Unresolved/inferred data is not treated as a proven
+violation. Its waiver Approver field is NOT authenticated and is
+not a production approval authority.
+
+On the trusted golden two-project example:
+
+~~~bash
+dotnet restore examples/billing-multi-project/Billing.sln --locked-mode
+dotnet restore ArchPulse.sln --locked-mode
+dotnet build ArchPulse.sln -c Release --no-restore
+dotnet test ArchPulse.sln -c Release --no-build
+dotnet run --project apps/cli/ArchPulse.Cli -c Release --no-build -- index-solution examples/billing-multi-project/Billing.sln --revision golden-fixture --store /tmp/archpulse-graph
+dotnet run --project apps/cli/ArchPulse.Cli -c Release --no-build -- graph-show Billing --revision golden-fixture --store /tmp/archpulse-graph
+dotnet run --project apps/cli/ArchPulse.Cli -c Release --no-build -- guardian Billing --revision golden-fixture --store /tmp/archpulse-graph --rules examples/billing-multi-project/forbidden-policy.json
+~~~
+
+The supplied policy deliberately prohibits a real Billing.Service to
+Billing.Contracts call; it is an instructional fixture, not a policy
+proposed for ArchPulse. Warning-level violations are reported but
+do not fail CLI; Error/Blocker violations return a nonzero exit code.
+
+SECURITY: MSBuild evaluates project files; this experimental component
+must only be used on trusted projects and should move into an isolated
+worker. NuGet restore initially blocked affected MSBuild and cryptography
+XML packages. Dependencies were upgraded/pinned to Microsoft.Build
+17.14.28 and System.Security.Cryptography.Xml 10.0.13 without
+suppressing warnings. MSBuild.Locator runtime asset exclusions ensure
+the SDK supplies the MSBuild assemblies. No full license audit yet.

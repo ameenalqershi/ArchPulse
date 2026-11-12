@@ -1,0 +1,11 @@
+[
+  {
+    "Id": "EXAMPLE-001",
+    "Version": "1",
+    "FromProject": "Billing.Service",
+    "ToProject": "Billing.Contracts",
+    "Relation": "Calls",
+    "Severity": "Warning",
+    "Enabled": true
+  }
+]

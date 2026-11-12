@@ -3,5 +3,5 @@
     <OutputType>Exe</OutputType>
     <Description>Offline command-line Roslyn graph indexing with source provenance.</Description>
   </PropertyGroup>
-  <ItemGroup><ProjectReference Include="../../../engine/ArchPulse.Roslyn/ArchPulse.Roslyn.csproj"/></ItemGroup>
+  <ItemGroup><ProjectReference Include="../../../engine/ArchPulse.Roslyn/ArchPulse.Roslyn.csproj"/><ProjectReference Include="../../../engine/ArchPulse.Guardian/ArchPulse.Guardian.csproj"/></ItemGroup>
 </Project>

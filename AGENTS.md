@@ -39,3 +39,12 @@ docs/operations/agent-handoff/REBUILD-2026-11-12.md and
 docs/guides/dotnet-native-cli.md. Never claim proposed S00–S33
 requirements are verified merely from foundation CI or the limited first
 Roslyn graph. Preserve existing agent work/PRs and do not rewrite main.
+
+## Experimental graph indexing milestone — 2026-11-12
+
+The rebuild branch also contains a real MSBuildWorkspace solution
+indexer, immutable JSON graph snapshots, evidence-scoped queries and
+preliminary ArchitectureGuardian rules. Read the .NET CLI guide and
+proposed ADR-0001. NEVER load untrusted MSBuild projects on the shared
+VPS. The waiver approver text is not verified identity and cannot
+authorize a protected change. S02/S03/S04/S15 remain incomplete.

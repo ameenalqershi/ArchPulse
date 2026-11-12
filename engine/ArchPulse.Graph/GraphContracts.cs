@@ -13,6 +13,7 @@ public enum EvidenceKind
 
 public enum GraphNodeKind
 {
+    Solution,
     Project,
     Namespace,
     Class,
