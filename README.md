@@ -2,7 +2,7 @@
 
 **Living Software Engineering & Architectural Futures Platform** · **Status: engineering foundation / under active development** · **License: Apache-2.0**
 
-[العربية](README.ar.md) · [Contribute](CONTRIBUTING.md) · [Governance](GOVERNANCE.md) · [Architecture](docs/architecture/README.md) · [Roadmap](ROADMAP.md) · [Agent handoff](AGENTS.md)
+[العربية](README.ar.md) · [Contribute](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Security](SECURITY.md) · [Support](SUPPORT.md) · [Governance](GOVERNANCE.md) · [Architecture](docs/architecture/README.md) · [Task index](docs/requirements/task-registry.md) · [Roadmap](ROADMAP.md) · [Agent handoff](AGENTS.md)
 
 > **Experimental partial platform, not a production-ready product.** The repository now contains tested local-only C# graph indexing, an immutable graph store, a read-only ASP.NET API, a React source-graph prototype, MCP Apps experiments, static test links and partial Test Journey receipts. These do **not** establish authenticated public access, runtime traces, feature completeness, or full S00–S33 acceptance. Do not publish green badges or capability-completeness claims without exact-revision CI and acceptance evidence.
 
@@ -46,7 +46,9 @@ flowchart TB
     API --> Clients[CLI / VS Code / MCP - planned]
 ```
 
-**Evidence contract:** Proposed diagrams do not show verified implementation. Missing telemetry must never be taken as proof that code did not execute. Test cases appear as badges or inspector entries, not as default standalone blocks on the main architecture canvas.
+**Text-only diagram alternative:** Git code feeds a proposed Roslyn indexer, which populates a versioned evidence graph together with planned OTLP observations. The graph feeds Guardian and RepoLab; those and Futures Engine and Agent Gateway provide planned API inputs. The API in turn supplies the proposed Web Studio and CLI/VS Code/MCP clients. The agent gateway and Futures Engine exchange decisions; no arrow proves a deployed integration.
+
+**Evidence contract:** This Mermaid diagram is a **target design**, not a rendering of real source/runtime. Actual local static graph and Web Studio slices are partial; live observability, full Futures Engine, isolated RepoLab, authenticated remote Studio, and VS Code extension are **planned**, not shipped. Missing telemetry must never be taken as proof that code did not execute. Test cases appear as badges or inspector entries, not as default standalone blocks on the main architecture canvas.
 
 ## Current implementation and verification
 
