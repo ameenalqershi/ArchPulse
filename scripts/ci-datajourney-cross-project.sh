@@ -31,6 +31,8 @@ jq -e --arg rev "$revision" '
   (case("Serialize") | map(.Boundary) == ["OpaqueCall"]) and
   (case("AsyncBoundary") | map(.Boundary) == ["OpaqueCall"]) and
   (case("Conditional") | map(.Boundary) == ["UnsupportedSyntax"]) and
+  (case("DynamicSql") | map(.Boundary) == ["UnsupportedSyntax"]) and
+  (case("Reflection") | map(.Boundary) == ["UnsupportedSyntax"]) and
   (case("AssignmentInArgument") | map(.Boundary) == ["UnsupportedSyntax"]) and
   (case("Recursive") | map(.Boundary) == ["AnalysisLimit"]) and
   (case("ClaimedSanitizer") | map(.Boundary) == ["DeclaredSanitizer"]) and
@@ -48,4 +50,4 @@ if grep -Eq 'FIXTURE-(SECRET|PUBLIC)-DO-NOT-SERIALIZE|classification-label|publi
   echo "Fixture payload leaked into DataJourney metadata." >&2
   exit 1
 fi
-echo "T028 partial: three static multi-project witnesses, six explicit analysis gaps and three negative controls."
+echo "T028 partial: three static multi-project witnesses, eight explicit analysis gaps and three negative controls."

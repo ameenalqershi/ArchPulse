@@ -65,6 +65,19 @@ try
         return 0;
     }
 
+    if (args.Length == 8 && args[0] == "datajourney-review" && args[2] == "--revision" &&
+        args[4] == "--policy" && args[6] == "--format" && args[7] is "html" or "summary")
+    {
+        var policy = DataJourneyPolicy.Load(args[5]);
+        var report = await new SolutionGraphIndexer().AnalyzeCrossProjectDataJourneyAsync(args[1], args[3]);
+        var review = new DataJourneyReview(report, policy);
+        if (args[7] == "html")
+            review.WriteHtml(Console.Out);
+        else
+            review.WriteSummary(Console.Out, jsonOptions);
+        return 0;
+    }
+
     // T027/S06 local, trusted-MSBuild-only, source-only annotated value-flow
     // analysis. All classifications are heuristic; no sensitive values stored.
     if (args.Length is 4 or 6 && args[0] == "datajourney-local" &&
@@ -251,6 +264,7 @@ try
     Console.Error.WriteLine("  index <source-dir> --revision <git-sha> --project <name>");
     Console.Error.WriteLine("  datajourney-local <trusted.sln> --revision <sha> [--store <directory>]");
     Console.Error.WriteLine("  datajourney-cross-project <trusted.sln> --revision <sha>");
+    Console.Error.WriteLine("  datajourney-review <trusted.sln> --revision <sha> --policy <json> --format <html|summary>");
     Console.Error.WriteLine("  datajourney-show <project> --revision <sha> --store <directory>");
     Console.Error.WriteLine("  feature-discover <trusted.sln> --revision <sha> [--store <directory>]");
     Console.Error.WriteLine("  feature-signals <project> --revision <sha> --store <directory>");

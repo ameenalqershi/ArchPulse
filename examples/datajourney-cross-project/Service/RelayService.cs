@@ -34,6 +34,11 @@ public static class RelayService
     [DeclaredSanitizer]
     public static string ClaimedSanitizer(string value) => value;
 
+    public static void DynamicSql(string value) => StorageAdapter.Store($"SELECT {value}");
+
+    public static void Reflection(string value) =>
+        typeof(StorageAdapter).GetMethod(nameof(StorageAdapter.Store))?.Invoke(null, [value]);
+
     public static void Overwrite(string value)
     {
         value = "FIXTURE-PUBLIC-DO-NOT-SERIALIZE";

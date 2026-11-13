@@ -50,6 +50,8 @@ jobs:
         run: bash scripts/ci-datajourney-local.sh
       - name: Bounded static cross-project value flow with graph witnesses (S06/T028 partial)
         run: bash scripts/ci-datajourney-cross-project.sh
+      - name: DataJourney zone policy, privacy corpus and accessible local report (S06/T029-T031 partial)
+        run: bash scripts/ci-datajourney-review.sh
       - name: Native results-only TRX evidence smoke (S33 partial)
         run: bash scripts/ci-test-journey-results.sh
       - name: Explicit local test-run process and content-digest receipt (S33 partial)
