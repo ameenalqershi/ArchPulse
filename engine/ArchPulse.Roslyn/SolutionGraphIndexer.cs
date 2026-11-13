@@ -27,6 +27,24 @@ public sealed class SolutionGraphIndexer
     public async Task<SolutionGraphAnalysis> AnalyzeSolutionAsync(
         string solutionPath, string revision, CancellationToken cancellationToken = default)
     {
+        var (graph, compilations, root) = await IndexSourceAsync(solutionPath, revision, cancellationToken);
+        var testLinks = MethodTestAssociationIndexer.Project(graph, compilations);
+        var featureSignals = FeatureCandidateIndexer.Discover(graph, testLinks, compilations);
+        var dataJourney = LocalDataJourneyAnalyzer.Analyze(graph, compilations, root);
+        return new SolutionGraphAnalysis(graph, testLinks, featureSignals, dataJourney);
+    }
+
+    public async Task<CrossProjectDataJourneyReport> AnalyzeCrossProjectDataJourneyAsync(
+        string solutionPath, string revision, CancellationToken cancellationToken = default)
+    {
+        var (graph, compilations, root) = await IndexSourceAsync(solutionPath, revision, cancellationToken);
+        return CrossProjectDataJourneyAnalyzer.Analyze(graph, compilations, root, cancellationToken);
+    }
+
+    private static async Task<(GraphSnapshot Graph,
+        (string Project, CSharpCompilation Compilation)[] Compilations, string Root)> IndexSourceAsync(
+        string solutionPath, string revision, CancellationToken cancellationToken)
+    {
         solutionPath = Path.GetFullPath(solutionPath);
         if (!File.Exists(solutionPath))
             throw new FileNotFoundException("The solution does not exist.", solutionPath);
@@ -143,13 +161,7 @@ public sealed class SolutionGraphIndexer
             nodes.Values.OrderBy(n => n.SymbolId, StringComparer.Ordinal).ToArray(),
             edges.Values.OrderBy(e => e.EdgeId, StringComparer.Ordinal).ToArray(),
             diagnostics.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray());
-        var testLinks = MethodTestAssociationIndexer.Project(graph,
-            compilations.Select(c => (c.Project.Name, c.Compilation)));
-        var featureSignals = FeatureCandidateIndexer.Discover(graph, testLinks,
-            compilations.Select(c => (c.Project.Name, c.Compilation)));
-        var dataJourney = LocalDataJourneyAnalyzer.Analyze(graph,
-            compilations.Select(c => (c.Project.Name, c.Compilation)), root);
-        return new SolutionGraphAnalysis(graph, testLinks, featureSignals, dataJourney);
+        return (graph, compilations.Select(c => (c.Project.Name, c.Compilation)).ToArray(), root);
     }
 
     private static SourceEvidence Normalize(SourceEvidence evidence, string root)

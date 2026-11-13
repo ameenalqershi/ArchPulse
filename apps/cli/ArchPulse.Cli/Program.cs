@@ -58,6 +58,13 @@ try
         return 0;
     }
 
+    if (args.Length == 4 && args[0] == "datajourney-cross-project" && args[2] == "--revision")
+    {
+        var report = await new SolutionGraphIndexer().AnalyzeCrossProjectDataJourneyAsync(args[1], args[3]);
+        Console.WriteLine(JsonSerializer.Serialize(report, jsonOptions));
+        return 0;
+    }
+
     // T027/S06 local, trusted-MSBuild-only, source-only annotated value-flow
     // analysis. All classifications are heuristic; no sensitive values stored.
     if (args.Length is 4 or 6 && args[0] == "datajourney-local" &&
@@ -243,6 +250,7 @@ try
     Console.Error.WriteLine("  test-links <trusted.sln> --revision <sha> [--store <directory>] [--target <exact-symbol-id>]");
     Console.Error.WriteLine("  index <source-dir> --revision <git-sha> --project <name>");
     Console.Error.WriteLine("  datajourney-local <trusted.sln> --revision <sha> [--store <directory>]");
+    Console.Error.WriteLine("  datajourney-cross-project <trusted.sln> --revision <sha>");
     Console.Error.WriteLine("  datajourney-show <project> --revision <sha> --store <directory>");
     Console.Error.WriteLine("  feature-discover <trusted.sln> --revision <sha> [--store <directory>]");
     Console.Error.WriteLine("  feature-signals <project> --revision <sha> --store <directory>");

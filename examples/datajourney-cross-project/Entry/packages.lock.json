@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net10.0": {
+      "service": {
+        "type": "Project",
+        "dependencies": {
+          "Storage": "[1.0.0, )"
+        }
+      },
+      "storage": {
+        "type": "Project"
+      }
+    }
+  }
+}

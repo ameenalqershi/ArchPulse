@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="Entry/Entry.csproj" />
+  <Project Path="Service/Service.csproj" />
+  <Project Path="Storage/Storage.csproj" />
+</Solution>
