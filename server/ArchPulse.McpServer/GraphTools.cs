@@ -157,6 +157,34 @@ public sealed class GraphTools
         catch (JsonException) { return Failure("Stored feature catalog is malformed."); }
     }
 
+    [McpServerTool(Name = "archpulse_feature_impact", ReadOnly = true)]
+    [Description("Compare two exact local source graph revisions against the FROM revision's candidate feature catalog. Structural static call-path candidates only; not a Git patch, runtime effect, business acceptance, or approved feature.")]
+    public static CallToolResult FeatureImpact(
+        GraphSnapshotStore graphs, FeatureCatalogStore features,
+        string project, string fromRevision, string toRevision)
+    {
+        var before = ReadValidated(graphs, project, fromRevision);
+        var after = ReadValidated(graphs, project, toRevision);
+        if (before is null || after is null)
+            return Failure("Both exact graph revisions must already be indexed locally.");
+        try
+        {
+            var catalog = features.Load(before);
+            if (catalog is null)
+                return Success("Feature catalog NotIndexed at FROM revision; no impact assertions.",
+                    new { schema = FeatureImpactAnalyzer.Schema, project, fromRevision, toRevision,
+                        catalogStatus = "NotIndexed", evidenceScope = FeatureImpactAnalyzer.Scope,
+                        runtimeStatus = "Unknown", impacts = Array.Empty<FeatureImpactSignal>() });
+            var report = FeatureImpactAnalyzer.Assess(before, after, catalog);
+            if (report.Impacts.Count > 300)
+                return Failure("Candidate impacts exceed the bounded local MCP response.");
+            return Success("Static structural candidate impacts only; missing results do not prove no PR impact.",
+                report);
+        }
+        catch (InvalidDataException) { return Failure("Graph or candidate catalog impact evidence is invalid."); }
+        catch (JsonException) { return Failure("The stored feature catalog is unreadable."); }
+    }
+
     [McpServerTool(Name = "archpulse_guardian_check", ReadOnly = true)]
     [Description("Evaluate a proposed forbidden cross-project relation against the exact saved graph. This is not policy approval or enforcement.")]
     public static CallToolResult GuardianCheck(GraphSnapshotStore store, string project, string revision,

@@ -49,6 +49,10 @@ T023/S05 now has an **implemented partial** native C# feature catalog that requi
 
 The new `feature-discover <trusted.sln> --revision <sha> [--store <path>]` CLI analyzes Roslyn-declared MVC method attributes, naming-only Handlers and framework-name-matched test declarations without calling AI providers. `feature-signals <project> --revision <sha> --store <path>` reads the exact immutable sidecar. These are **inferred business candidates**, not auto-approved FeatureAtlas definitions or observed runtime events. [Reproducible fixture and limits](feature-discovery-local.md).
 
+## Structural candidate feature impact (T025/S05; 2026-11-13)
+
+The native `feature-impact <project> --from <revision> --to <revision> --store <path>` command compares exact saved graph structures against a human-curated FROM revision candidate feature catalog. Its direct-member and static call-path signals are **not** a full PR diff, verified business impact, runtime trace or test result. See [reproducible analysis and limits](feature-impact-local.md).
+
 ## Legacy Python retirement
 
 The four prior foundation/traceability Python scripts were analyzed and

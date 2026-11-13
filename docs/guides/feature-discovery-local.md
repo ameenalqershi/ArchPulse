@@ -92,8 +92,8 @@ sidecars, 404/422, absent reports and no side-effect writes.
 **Still not supported:** MVC minimal APIs or conventional route maps,
 full `RouteAttribute` resolution, MediatR interface and DI registration,
 OpenAPI schemas, domain events, behavioral feature grouping, cross-repo
-mapping, false-positive adjudication and feedback history (T024), PR impact
-or Guardian feature linking (T025), approved correction and locking (T026),
+mapping, false-positive adjudication and feedback history (T024), full Git PR diff
+or Guardian feature linking (T025; [partial structural candidate graph impact](feature-impact-local.md)), approved correction and locking (T026),
 feature-scoped UI, DataJourney and observed feature Test Journeys. In particular,
 this T024 report does **not** populate the T023 `BusinessFeature` catalog
 automatically. Specifications remain Proposed and no product acceptance

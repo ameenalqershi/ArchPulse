@@ -138,6 +138,23 @@ try
         return 0;
     }
 
+    // T025/S05: read only structural graph deltas and a human-authored
+    // FROM-revision catalog. This is not a full PR/source-body impact analysis.
+    if (args.Length == 8 && args[0] == "feature-impact" &&
+        args[2] == "--from" && args[4] == "--to" && args[6] == "--store")
+    {
+        var graphs = new GraphSnapshotStore(args[7]);
+        var before = graphs.Load(args[1], args[3])
+            ?? throw new FileNotFoundException("Exact FROM graph revision was not indexed.");
+        var after = graphs.Load(args[1], args[5])
+            ?? throw new FileNotFoundException("Exact TO graph revision was not indexed.");
+        var catalog = new FeatureCatalogStore(args[7]).Load(before)
+            ?? throw new FileNotFoundException("FROM revision human feature catalog NotIndexed.");
+        Console.WriteLine(JsonSerializer.Serialize(
+            FeatureImpactAnalyzer.Assess(before, after, catalog), jsonOptions));
+        return 0;
+    }
+
     if (args.Length == 8 && args[0] == "graph-diff"
         && args[2] == "--from" && args[4] == "--to" && args[6] == "--store")
     {
@@ -173,6 +190,7 @@ try
     Console.Error.WriteLine("  feature-import <project> --revision <sha> --store <directory> --manifest <json>");
     Console.Error.WriteLine("  feature-show <project> --revision <sha> --store <directory> [--id <feature-slug>]");
     Console.Error.WriteLine("  graph-show <project> --revision <git-sha> --store <directory>");
+    Console.Error.WriteLine("  feature-impact <project> --from <sha> --to <sha> --store <directory>");
     Console.Error.WriteLine("  graph-diff <project> --from <sha> --to <sha> --store <directory>");
     Console.Error.WriteLine("  guardian <project> --revision <sha> --store <directory> --rules <json>");
     return 2;
