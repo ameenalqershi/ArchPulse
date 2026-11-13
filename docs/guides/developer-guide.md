@@ -14,4 +14,4 @@ dotnet test ArchPulse.sln -c Release --no-build
 dotnet run --project tooling/ArchPulse.RepositoryValidator -c Release
 ```
 
-Review the [scope](../architecture/README.md), [specification index](../requirements/specification-index.md) and [task registry](../requirements/task-registry.md). Choose a Txxx; open an issue for implementation with Sxx links. Do not implement speculative network services or AI provider calls in the foundation without a reviewed task. Never commit credentials.
+Review the [scope](../architecture/README.md), [specification index](../requirements/specification-index.md), [task registry](../requirements/task-registry.md), and [native project-reference integrity guard](project-reference-guard.md) (T005/S01 partial). Choose a Txxx; open an issue for implementation with Sxx links. Do not implement speculative network services or AI provider calls in the foundation without a reviewed task. Never commit credentials.
