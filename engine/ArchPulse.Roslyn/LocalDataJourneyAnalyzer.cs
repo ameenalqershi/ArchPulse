@@ -15,9 +15,9 @@ namespace ArchPulse.Roslyn;
 /// </summary>
 public static class LocalDataJourneyAnalyzer
 {
-    private const string SourceAttribute = "ArchPulse.DataJourney.SensitiveSourceAttribute";
-    private const string SinkAttribute = "ArchPulse.DataJourney.SensitiveSinkAttribute";
-    private const string SanitizerAttribute = "ArchPulse.DataJourney.DeclaredSanitizerAttribute";
+    internal const string SourceAttribute = "ArchPulse.DataJourney.SensitiveSourceAttribute";
+    internal const string SinkAttribute = "ArchPulse.DataJourney.SensitiveSinkAttribute";
+    internal const string SanitizerAttribute = "ArchPulse.DataJourney.DeclaredSanitizerAttribute";
     private const int MaxStatements = 128;
     private const int MaxFindings = 3000;
 
@@ -218,7 +218,7 @@ public static class LocalDataJourneyAnalyzer
         }
     }
 
-    private static bool Has(ISymbol symbol, string attribute) =>
+    internal static bool Has(ISymbol symbol, string attribute) =>
         symbol.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == attribute);
 
     private static string Short(string value) =>

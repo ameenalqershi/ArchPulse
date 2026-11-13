@@ -30,6 +30,8 @@ jobs:
         run: dotnet restore examples/feature-signals/FeatureSignals.sln --locked-mode
       - name: Restore source-only sensitive dataflow corpus (T027) without paid dependencies
         run: dotnet restore examples/datajourney-local/DataJourney.sln --locked-mode
+      - name: Restore the S06 cross-project dataflow fixture
+        run: dotnet restore examples/datajourney-cross-project/Journey.slnx --locked-mode
       - name: Release build
         run: dotnet build ArchPulse.sln --no-restore --configuration Release
       - name: Unit, graph and validator regression tests
@@ -46,6 +48,8 @@ jobs:
         run: bash scripts/ci-feature-review.sh
       - name: Source-only annotated local dataflow and negative corpus (S06/T027 partial)
         run: bash scripts/ci-datajourney-local.sh
+      - name: Bounded static cross-project value flow with graph witnesses (S06/T028 partial)
+        run: bash scripts/ci-datajourney-cross-project.sh
       - name: Native results-only TRX evidence smoke (S33 partial)
         run: bash scripts/ci-test-journey-results.sh
       - name: Explicit local test-run process and content-digest receipt (S33 partial)

@@ -40,6 +40,8 @@ project/revision sidecars. It never upgrades `Observed` or `Verified`
 evidence. HTTP/MCP expose only **read-only** local reports; they cannot
 request MSBuild evaluation or data capture.
 
+For calls across C# projects, see the experimental [T028 cross-project CLI](datajourney-cross-project.md).
+
 ## Reproduce trusted fixture
 
 The following evaluates the included local .NET project: MSBuild can execute
