@@ -138,6 +138,37 @@ try
         return 0;
     }
 
+    // T026/S05: explicit trusted local operator review. A declared human
+    // label is not authenticated identity; never writes through HTTP/MCP.
+    if (args.Length == 6 && args[0] == "feature-review-show" &&
+        args[2] == "--revision" && args[4] == "--store")
+    {
+        var graph = new GraphSnapshotStore(args[5]).Load(args[1], args[3])
+            ?? throw new FileNotFoundException("The exact review graph revision is missing.");
+        var catalog = new FeatureCatalogStore(args[5]).Load(graph)
+            ?? throw new FileNotFoundException("The exact candidate feature catalog is missing.");
+        var summary = new FeatureReviewJournal(args[5]).Read(graph, catalog);
+        Console.WriteLine(JsonSerializer.Serialize(summary, jsonOptions));
+        return 0;
+    }
+
+    if (args.Length == 9 && args[0] == "feature-review-record" &&
+        args[2] == "--revision" && args[4] == "--store" &&
+        args[6] == "--request" && args[8] == "--confirm-local-human-review")
+    {
+        var graph = new GraphSnapshotStore(args[5]).Load(args[1], args[3])
+            ?? throw new FileNotFoundException("The exact review graph revision is missing.");
+        var catalog = new FeatureCatalogStore(args[5]).Load(graph)
+            ?? throw new FileNotFoundException("The exact candidate feature catalog is missing.");
+        var requestInfo = new FileInfo(args[7]);
+        if (!requestInfo.Exists || requestInfo.Length > 16384)
+            throw new InvalidDataException("The explicit human review request must be <= 16 KiB.");
+        var request = FeatureReviewJournal.ParseRequest(File.ReadAllText(args[7]));
+        var summary = new FeatureReviewJournal(args[5]).Append(graph, catalog, request);
+        Console.WriteLine(JsonSerializer.Serialize(summary, jsonOptions));
+        return 0;
+    }
+
     // T025/S05: read only structural graph deltas and a human-authored
     // FROM-revision catalog. This is not a full PR/source-body impact analysis.
     if (args.Length == 8 && args[0] == "feature-impact" &&
@@ -190,6 +221,8 @@ try
     Console.Error.WriteLine("  feature-import <project> --revision <sha> --store <directory> --manifest <json>");
     Console.Error.WriteLine("  feature-show <project> --revision <sha> --store <directory> [--id <feature-slug>]");
     Console.Error.WriteLine("  graph-show <project> --revision <git-sha> --store <directory>");
+    Console.Error.WriteLine("  feature-review-show <project> --revision <sha> --store <directory>");
+    Console.Error.WriteLine("  feature-review-record <project> --revision <sha> --store <directory> --request <json> --confirm-local-human-review");
     Console.Error.WriteLine("  feature-impact <project> --from <sha> --to <sha> --store <directory>");
     Console.Error.WriteLine("  graph-diff <project> --from <sha> --to <sha> --store <directory>");
     Console.Error.WriteLine("  guardian <project> --revision <sha> --store <directory> --rules <json>");

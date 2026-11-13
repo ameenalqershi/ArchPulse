@@ -40,6 +40,13 @@ builder.Services.AddSingleton(provider =>
         ?? Path.Combine(Path.GetTempPath(), "archpulse-graph");
     return new FeatureDiscoveryStore(path);
 });
+builder.Services.AddSingleton(provider =>
+{
+    var config = provider.GetRequiredService<IConfiguration>();
+    var path = config["ARCHPULSE_GRAPH_STORE"]
+        ?? Path.Combine(Path.GetTempPath(), "archpulse-graph");
+    return new FeatureReviewJournal(path);
+});
 var app = builder.Build();
 
 app.MapGet("/health", () => Results.Ok(new
@@ -95,6 +102,42 @@ app.MapGet("/api/graphs/{project}/{revision}/feature-signals",
         catch (System.Text.Json.JsonException)
         {
             return Results.Problem("Stored source-signal report is unreadable.", statusCode: 422);
+        }
+    });
+
+// T026/S05 local operator-declared review receipt history. No writes are
+// accepted by this unauthenticated loopback HTTP API. Operator labels are not
+// authenticated identities and cannot promote candidate mapping to Verified.
+app.MapGet("/api/graphs/{project}/{revision}/feature-reviews",
+    (GraphSnapshotStore graphs, FeatureCatalogStore features,
+     FeatureReviewJournal journal, string project, string revision) =>
+    {
+        var graph = graphs.Load(project, revision);
+        if (graph is null) return Results.NotFound();
+        try
+        {
+            var catalog = features.Load(graph);
+            if (catalog is null)
+                return Results.Ok(new
+                {
+                    schema = FeatureReviewJournal.Schema, project, revision,
+                    catalogStatus = "NotIndexed", reviewStatus = "NotIndexed",
+                    scope = FeatureReviewJournal.Scope,
+                    history = Array.Empty<FeatureReviewReceipt>()
+                });
+            var summary = journal.Read(graph, catalog);
+            if (summary.History.Count > 200 || summary.Members.Count > 500)
+                return Results.Problem("Review history exceeds bounded read response.",
+                    statusCode: 413);
+            return Results.Ok(summary);
+        }
+        catch (InvalidDataException)
+        {
+            return Results.Problem("Feature review receipt chain is invalid.", statusCode: 422);
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return Results.Problem("Feature review receipt cannot be parsed.", statusCode: 422);
         }
     });
 

@@ -124,7 +124,7 @@ immutable re-import. The separate MCP protocol smoke exercises the seventh
 tool through the official .NET MCP client.
 
 **T024 partial:** a separate [offline Roslyn discovery guide](feature-discovery-local.md) describes candidate source signals from MVC attributes, named handlers and test declarations. Signals are always inferred business hints and **do not** populate this operator-curated catalog. **Not implemented:** full automatic discovery and human review (minimal APIs/OpenAPI/registration verification),
-**T025 partial:** [source-graph structural candidate impact](feature-impact-local.md) can trace direct/reachable graph changes from a manual catalog, but not Git PR body patches, Guardian findings or verified behavior. Full T025, T026 reviewed/locked corrections,
+**T025 partial:** [source-graph structural candidate impact](feature-impact-local.md) can trace direct/reachable graph changes from a manual catalog, but not Git PR body patches, Guardian findings or verified behavior. Full T025, T026 authenticated reviewer and editable corrections ([partial local operator receipt journal](feature-review-local.md)),
 feature-scoped UI navigation, business acceptance proofs, DataJourney
 and observed feature-level Test Execution Journeys. No S05 or S27 full
 acceptance is claimed.
