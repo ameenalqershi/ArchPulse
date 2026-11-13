@@ -147,7 +147,9 @@ public sealed class SolutionGraphIndexer
             compilations.Select(c => (c.Project.Name, c.Compilation)));
         var featureSignals = FeatureCandidateIndexer.Discover(graph, testLinks,
             compilations.Select(c => (c.Project.Name, c.Compilation)));
-        return new SolutionGraphAnalysis(graph, testLinks, featureSignals);
+        var dataJourney = LocalDataJourneyAnalyzer.Analyze(graph,
+            compilations.Select(c => (c.Project.Name, c.Compilation)), root);
+        return new SolutionGraphAnalysis(graph, testLinks, featureSignals, dataJourney);
     }
 
     private static SourceEvidence Normalize(SourceEvidence evidence, string root)
@@ -167,4 +169,4 @@ public sealed class SolutionGraphIndexer
 // are unchanged. Test declarations do not become standalone canvas nodes.
 public sealed record SolutionGraphAnalysis(
     GraphSnapshot Graph, StaticTestAssociationReport TestAssociations,
-    FeatureDiscoveryReport FeatureSignals);
+    FeatureDiscoveryReport FeatureSignals, LocalDataJourneyReport DataJourney);

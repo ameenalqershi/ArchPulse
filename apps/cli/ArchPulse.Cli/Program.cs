@@ -58,6 +58,32 @@ try
         return 0;
     }
 
+    // T027/S06 local, trusted-MSBuild-only, source-only annotated value-flow
+    // analysis. All classifications are heuristic; no sensitive values stored.
+    if (args.Length is 4 or 6 && args[0] == "datajourney-local" &&
+        args[2] == "--revision" && (args.Length == 4 || args[4] == "--store"))
+    {
+        var analysis = await new SolutionGraphIndexer().AnalyzeSolutionAsync(args[1], args[3]);
+        if (args.Length == 6)
+        {
+            new GraphSnapshotStore(args[5]).Save(analysis.Graph);
+            new LocalDataJourneyStore(args[5]).Save(analysis.Graph, analysis.DataJourney);
+        }
+        Console.WriteLine(JsonSerializer.Serialize(analysis.DataJourney, jsonOptions));
+        return 0;
+    }
+
+    if (args.Length == 6 && args[0] == "datajourney-show" &&
+        args[2] == "--revision" && args[4] == "--store")
+    {
+        var graph = new GraphSnapshotStore(args[5]).Load(args[1], args[3])
+            ?? throw new FileNotFoundException("Exact graph revision is missing.");
+        var report = new LocalDataJourneyStore(args[5]).Load(graph)
+            ?? throw new FileNotFoundException("Local DataJourney NotIndexed for this exact revision.");
+        Console.WriteLine(JsonSerializer.Serialize(report, jsonOptions));
+        return 0;
+    }
+
     // T024/S05: discover source-only candidates; never auto-approve, create
     // BusinessFeature membership, or infer that a test passed or endpoint ran.
     if (args.Length is 4 or 6 && args[0] == "feature-discover" &&
@@ -216,6 +242,8 @@ try
     Console.Error.WriteLine("  index-solution <.sln> --revision <git-sha> [--store <directory>]");
     Console.Error.WriteLine("  test-links <trusted.sln> --revision <sha> [--store <directory>] [--target <exact-symbol-id>]");
     Console.Error.WriteLine("  index <source-dir> --revision <git-sha> --project <name>");
+    Console.Error.WriteLine("  datajourney-local <trusted.sln> --revision <sha> [--store <directory>]");
+    Console.Error.WriteLine("  datajourney-show <project> --revision <sha> --store <directory>");
     Console.Error.WriteLine("  feature-discover <trusted.sln> --revision <sha> [--store <directory>]");
     Console.Error.WriteLine("  feature-signals <project> --revision <sha> --store <directory>");
     Console.Error.WriteLine("  feature-import <project> --revision <sha> --store <directory> --manifest <json>");
