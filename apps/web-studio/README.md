@@ -78,3 +78,12 @@ tests passed. Browser screenshots from this run were kept only in
 the private authorized VPS evidence directory, not published in Git.
 The automated hosted CI covers TypeScript/React build and pure graph
 contract tests; it does not yet claim hosted full-browser E2E.
+
+## DataJourney in the method inspector
+
+Index the trusted solution with the CLI and save the graph and witness report
+using the [cross-project DataJourney guide](../../docs/guides/datajourney-cross-project.md).
+Select a method in the same stored revision to expand a static witness and
+navigate its arguments and returns. Runtime evidence is shown as unknown.
+Run `bash scripts/ci-datajourney-studio.sh` from the repository root after
+building the CLI and API and installing Web Studio dependencies and Chromium.

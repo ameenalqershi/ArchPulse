@@ -2,7 +2,6 @@
 using System.Net;
 using System.Text.Json;
 using ArchPulse.Graph;
-using ArchPulse.Roslyn;
 
 internal sealed class DataJourneyReview(CrossProjectDataJourneyReport report, DataJourneyPolicy policy)
 {

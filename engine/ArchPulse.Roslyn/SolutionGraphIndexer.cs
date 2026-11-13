@@ -35,10 +35,14 @@ public sealed class SolutionGraphIndexer
     }
 
     public async Task<CrossProjectDataJourneyReport> AnalyzeCrossProjectDataJourneyAsync(
+        string solutionPath, string revision, CancellationToken cancellationToken = default) =>
+        (await IndexCrossProjectDataJourneyAsync(solutionPath, revision, cancellationToken)).Report;
+
+    public async Task<(GraphSnapshot Graph, CrossProjectDataJourneyReport Report)> IndexCrossProjectDataJourneyAsync(
         string solutionPath, string revision, CancellationToken cancellationToken = default)
     {
         var (graph, compilations, root) = await IndexSourceAsync(solutionPath, revision, cancellationToken);
-        return CrossProjectDataJourneyAnalyzer.Analyze(graph, compilations, root, cancellationToken);
+        return (graph, CrossProjectDataJourneyAnalyzer.Analyze(graph, compilations, root, cancellationToken));
     }
 
     private static async Task<(GraphSnapshot Graph,

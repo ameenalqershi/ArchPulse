@@ -29,11 +29,21 @@ semantics remain outside this slice. An empty result carries no privacy verdict.
 and should be obtained from the exact trusted checkout.
 
 The report contains identifiers and source-relative locations. It captures
-no values or payloads and is printed only to the local CLI. Use trusted
+no values or payloads and is printed by the local CLI. Use trusted
 solutions because MSBuild evaluates project files. Treat report files as
 source metadata and keep them within the corresponding access boundary.
 
 For directional policy evaluation and a local HTML report, see [DataJourney policy review](datajourney-review.md).
+
+## Web Studio
+
+Run the cross-project command with `--store /trusted/graph-store` to save both
+the canonical graph and a revision-scoped witness file. Point the loopback API
+at that directory with `ARCHPULSE_GRAPH_STORE`. Open the matching graph in
+Web Studio and select a method. Expand a witness to inspect source locations
+and jump to the destination method of an argument or return. The inspector
+labels static possibility, unknown runtime evidence, missing indexes and
+analysis limits. The GET endpoint reads stored source metadata only.
 
 ## Reproduce
 

@@ -58,9 +58,15 @@ try
         return 0;
     }
 
-    if (args.Length == 4 && args[0] == "datajourney-cross-project" && args[2] == "--revision")
+    if (args.Length is 4 or 6 && args[0] == "datajourney-cross-project" &&
+        args[2] == "--revision" && (args.Length == 4 || args[4] == "--store"))
     {
-        var report = await new SolutionGraphIndexer().AnalyzeCrossProjectDataJourneyAsync(args[1], args[3]);
+        var (graph, report) = await new SolutionGraphIndexer().IndexCrossProjectDataJourneyAsync(args[1], args[3]);
+        if (args.Length == 6)
+        {
+            new GraphSnapshotStore(args[5]).Save(graph);
+            new CrossProjectDataJourneyStore(args[5]).Save(graph, report);
+        }
         Console.WriteLine(JsonSerializer.Serialize(report, jsonOptions));
         return 0;
     }
@@ -263,7 +269,7 @@ try
     Console.Error.WriteLine("  test-links <trusted.sln> --revision <sha> [--store <directory>] [--target <exact-symbol-id>]");
     Console.Error.WriteLine("  index <source-dir> --revision <git-sha> --project <name>");
     Console.Error.WriteLine("  datajourney-local <trusted.sln> --revision <sha> [--store <directory>]");
-    Console.Error.WriteLine("  datajourney-cross-project <trusted.sln> --revision <sha>");
+    Console.Error.WriteLine("  datajourney-cross-project <trusted.sln> --revision <sha> [--store <directory>]");
     Console.Error.WriteLine("  datajourney-review <trusted.sln> --revision <sha> --policy <json> --format <html|summary>");
     Console.Error.WriteLine("  datajourney-show <project> --revision <sha> --store <directory>");
     Console.Error.WriteLine("  feature-discover <trusted.sln> --revision <sha> [--store <directory>]");

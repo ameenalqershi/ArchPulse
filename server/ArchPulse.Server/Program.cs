@@ -54,6 +54,15 @@ builder.Services.AddSingleton(provider =>
         ?? Path.Combine(Path.GetTempPath(), "archpulse-graph");
     return new LocalDataJourneyStore(path);
 });
+builder.Services.AddSingleton(provider =>
+{
+    var config = provider.GetRequiredService<IConfiguration>();
+    var path = config["ARCHPULSE_GRAPH_STORE"]
+        ?? Path.Combine(Path.GetTempPath(), "archpulse-graph");
+    return new CrossProjectDataJourneyStore(path);
+});
+if (int.TryParse(builder.Configuration["ARCHPULSE_LOCAL_GRAPH_PORT"], out int port) && port is > 0 and <= 65535)
+    builder.WebHost.UseUrls($"http://127.0.0.1:{port}");
 var app = builder.Build();
 
 app.MapGet("/health", () => Results.Ok(new
@@ -69,6 +78,8 @@ app.MapGet("/api/graphs/{project}/{revision}", (GraphSnapshotStore store,
     var graph = store.Load(project, revision);
     return graph is null ? Results.NotFound() : Results.Ok(graph);
 });
+
+app.MapGet("/api/graphs/{project}/{revision}/datajourney-cross-project", CrossProjectDataJourneyEndpoints.Get);
 
 // T027/S06 experimental metadata-only local method DataJourney.
  // Does not run compilation from HTTP; annotations, sanitizer claims and

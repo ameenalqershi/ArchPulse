@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using ArchPulse.Roslyn;
+using ArchPulse.Graph;
 
 internal enum DataClassification { Public, Internal, Confidential, Restricted }
 internal enum ReviewDisposition { AllowedByPolicy, RequiresReview, BlockedByPolicy }
@@ -111,9 +111,8 @@ internal sealed class DataJourneyPolicyEvaluator(DataJourneyPolicy policy)
 
     private ReviewedHop EvaluateHop(DataJourneyHop hop, DataClassification? classification)
     {
-        var (from, to) = hop.Kind == DataJourneyHopKind.Argument
-            ? (hop.Call.FromSymbolId, hop.Call.ToSymbolId)
-            : (hop.Call.ToSymbolId, hop.Call.FromSymbolId);
+        string from = hop.From;
+        string to = hop.To;
         string? fromZone = GetZone(from);
         string? toZone = GetZone(to);
         if (fromZone is null || toZone is null || classification is null)
