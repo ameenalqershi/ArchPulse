@@ -71,6 +71,104 @@ public sealed class GraphSnapshotStoreTests
     }
 
     [Fact]
+    public void DiffDoesNotReportEveryRetainedSymbolOnlyBecauseSourceRevisionChanges()
+    {
+        var previous = MakeGraph("public class A { public void One() {} }", "rev1");
+        var current = MakeGraph("public class A { public void One() {} }", "rev2");
+        var diff = GraphSnapshotStore.Compare(previous, current);
+        Assert.Empty(diff.AddedNodes);
+        Assert.Empty(diff.RemovedNodes);
+        Assert.Empty(diff.AddedEdges);
+        Assert.Empty(diff.RemovedEdges);
+        Assert.Empty(diff.ChangedNodes);
+        Assert.Empty(diff.ChangedEdges);
+    }
+
+    [Fact]
+    public void DiffTracksRetainedNodeLabelAndLocationWithoutConfusingAdditionWithChange()
+    {
+        var previous = MakeGraph("public class A { public void One() {} }", "rev1");
+        var current = MakeGraph("public class A { public void One() {} }", "rev2");
+        var method = Assert.Single(current.Nodes, node => node.Kind == GraphNodeKind.Method);
+        var updated = current with
+        {
+            Nodes = current.Nodes.Select(node => node.SymbolId == method.SymbolId
+                ? node with { Label = "One() revised", Evidence = node.Evidence with { Line = node.Evidence.Line + 1 } }
+                : node).ToArray()
+        };
+
+        var diff = GraphSnapshotStore.Compare(previous, updated);
+        Assert.Equal(method.SymbolId, Assert.Single(diff.ChangedNodes));
+        Assert.Empty(diff.AddedNodes);
+        Assert.Empty(diff.RemovedNodes);
+    }
+
+    [Fact]
+    public void DiffTracksRetainedEdgeRelationAndEvidenceChanges()
+    {
+        var previous = MakeGraph("""
+            public class A
+            {
+                public int One() => Two();
+                public int Two() => 1;
+            }
+            """, "rev1");
+        var current = MakeGraph("""
+            public class A
+            {
+                public int One() => Two();
+                public int Two() => 1;
+            }
+            """, "rev2");
+        var edge = Assert.Single(current.Edges);
+        var changed = current with
+        {
+            Edges = [edge with
+            {
+                Relation = "DependsOn",
+                Evidence = edge.Evidence with { RelativeFile = "Changed.cs" }
+            }]
+        };
+
+        var diff = GraphSnapshotStore.Compare(previous, changed);
+        Assert.Equal(edge.EdgeId, Assert.Single(diff.ChangedEdges));
+        Assert.Empty(diff.AddedEdges);
+        Assert.Empty(diff.RemovedEdges);
+    }
+
+    [Fact]
+    public void DiffTracksChangedOwnershipForSameExactSymbolId()
+    {
+        var evidenceBefore = new SourceEvidence("rev1", "X.cs", 1, 1, EvidenceKind.Static);
+        var evidenceAfter = evidenceBefore with { Revision = "rev2" };
+        var previous = new GraphSnapshot("X", "rev1",
+        [
+            new GraphNode("root1", GraphNodeKind.Solution, "One", null, evidenceBefore),
+            new GraphNode("root2", GraphNodeKind.Solution, "Two", null, evidenceBefore),
+            new GraphNode("child", GraphNodeKind.Method, "Child", "root1", evidenceBefore)
+        ], [], []);
+        var current = new GraphSnapshot("X", "rev2",
+        [
+            new GraphNode("root1", GraphNodeKind.Solution, "One", null, evidenceAfter),
+            new GraphNode("root2", GraphNodeKind.Solution, "Two", null, evidenceAfter),
+            new GraphNode("child", GraphNodeKind.Method, "Child", "root2", evidenceAfter)
+        ], [], []);
+        var diff = GraphSnapshotStore.Compare(previous, current);
+        Assert.Equal("child", Assert.Single(diff.ChangedNodes));
+    }
+
+    [Fact]
+    public void BodyOnlyEditWithUnchangedGraphStructureDoesNotProveNoSourceChange()
+    {
+        var previous = MakeGraph("public class A { public int One() => 1; }", "rev1");
+        var current = MakeGraph("public class A { public int One() => 2; }", "rev2");
+        var diff = GraphSnapshotStore.Compare(previous, current);
+        Assert.Empty(diff.ChangedNodes);
+        Assert.Empty(diff.ChangedEdges);
+        // This intentionally scoped projection cannot detect a body-only edit.
+    }
+
+    [Fact]
     public void GraphQueriesOnlyFollowEvidenceBackedRelations()
     {
         var graph = MakeGraph("""
@@ -92,8 +190,11 @@ public sealed class GraphSnapshotStoreTests
     public void InvalidEvidenceRevisionIsRejected()
     {
         var graph = MakeGraph("public class A {}", "rev1");
-        var tampered = graph with { Nodes = graph.Nodes.Select(n =>
-            n with { Evidence = n.Evidence with { Revision = "rev2" } }).ToArray() };
+        var tampered = graph with
+        {
+            Nodes = graph.Nodes.Select(n =>
+            n with { Evidence = n.Evidence with { Revision = "rev2" } }).ToArray()
+        };
         Assert.Throws<InvalidDataException>(() => GraphSnapshotStore.Validate(tampered));
     }
 

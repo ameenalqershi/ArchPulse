@@ -62,3 +62,39 @@ beyond the local testing purpose.
 - Future Studio/MCP integration must authenticate caller and symbol
   selection, enforce workspace boundaries, and avoid treating
   'Static' evidence as observed runtime behavior.
+
+## Detecting retained-identity graph changes (T011/S02 partial, 2026-11-14)
+
+`GET /api/graphs/{project}/diff?from=REV1&to=REV2` previously
+reported only additions and removals of exact Node/Edge IDs. If the same
+Symbol ID had a changed label, canonical parent, source file/line/column,
+or provenance classification, it was not represented in the diff at all.
+The same was true for an edge whose ID stayed stable while its endpoints,
+relationship type or source evidence changed.
+
+The `GraphDifference` response now also returns **`changedNodes`** and
+**`changedEdges`**, sorted by ordinal ID. These new arrays are additive to
+the existing `addedNodes`, `removedNodes`, `addedEdges` and
+`removedEdges`, preserving existing consumer fields. The comparison
+ignores **only the revision string inside SourceEvidence**: a new revision
+with byte-equivalent structural declarations must not classify all records
+as modified. It still detects any other source evidence location/kind
+change. The implementation uses ID dictionaries and set operations rather
+than repeatedly scanning the opposite revision.
+
+This is a **static structural/source-location delta**, not an AST body diff.
+Editing a method body while preserving its symbol identity, label,
+containment, edge identities and source evidence locations can still yield
+all six arrays empty; this does **not** mean the code or behavior was
+unchanged, nor does it indicate runtime safety. It is also not a Git diff,
+a provenance attestation, an event-sourced graph projection or a verified
+business impact. `FeatureImpactAnalyzer` continues to use only
+additions/removals and does **not** automatically promote
+`changedNodes`/`changedEdges` to verified impacted features.
+
+Regression tests exercise retained-identity label/location changes, edge
+relation/evidence changes, parent moves, revision-only changes, deliberate
+body-only blind spots and the read-only HTTP diff schema. Run
+`dotnet restore ArchPulse.sln --locked-mode` followed by Release
+build and `dotnet test ArchPulse.sln -c Release --no-build` on a trusted
+checkout. S02/T011 acceptance and human review remain open.
