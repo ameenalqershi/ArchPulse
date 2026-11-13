@@ -3,9 +3,9 @@ using System.Text.Json;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 
-if (args.Length != 3)
+if (args.Length is not (3 or 4))
 {
-    Console.Error.WriteLine("Usage: ArchPulse.McpSmoke <loopback-mcp-url> <project> <revision>");
+    Console.Error.WriteLine("Usage: ArchPulse.McpSmoke <loopback-mcp-url> <project> <revision> [feature-signals-fixture-project]");
     return 2;
 }
 var uri = new Uri(args[0], UriKind.Absolute);
@@ -22,7 +22,7 @@ var tools = await client.ListToolsAsync();
 string[] needed = [
     "archpulse_open_graph", "archpulse_graph_snapshot", "archpulse_symbol_context",
     "archpulse_find_evidenced_path", "archpulse_guardian_check",
-    "archpulse_linked_tests", "archpulse_feature_scope"
+    "archpulse_linked_tests", "archpulse_feature_scope", "archpulse_feature_signals"
 ];
 var names = tools.Select(t => t.Name).ToHashSet(StringComparer.Ordinal);
 foreach (var neededTool in needed)
@@ -93,6 +93,37 @@ var unknownFeature = await client.CallToolAsync("archpulse_feature_scope",
     });
 if (unknownFeature.IsError != true)
     throw new InvalidDataException("MCP tool did not reject an unknown feature.");
+
+// T024: source signals are non-binding suggestions, never approved features.
+var signalProject = args.Length == 4 ? args[3] : args[1];
+var candidatesResult = await client.CallToolAsync("archpulse_feature_signals",
+    new Dictionary<string, object?> {
+        ["project"] = signalProject, ["revision"] = args[2]
+    });
+if (candidatesResult.IsError == true ||
+    candidatesResult.StructuredContent is not JsonElement discovery ||
+    discovery.GetProperty("runtimeStatus").GetString() != "Unknown" ||
+    discovery.GetProperty("scope").GetString() !=
+        "SourceSignalsOnly;HumanReviewRequired;NotFeatureMembership")
+    throw new InvalidDataException("MCP source signal disclosure was missing or overclaimed.");
+if (args.Length == 4)
+{
+    var signals = discovery.GetProperty("signals").EnumerateArray().ToArray();
+    if (discovery.GetProperty("discoveryStatus").GetString() != "IndexedCandidates" ||
+        signals.Length != 4 ||
+        !signals.Any(x => x.GetProperty("kind").GetString() == "ControllerAction") ||
+        !signals.Any(x => x.GetProperty("kind").GetString() == "NamedHandler") ||
+        !signals.Any(x => x.GetProperty("kind").GetString() == "TestDeclaration") ||
+        signals.Any(x => x.GetProperty("businessClaim").GetString() != "Inferred" ||
+                         x.GetProperty("source").GetProperty("kind").GetString() != "Static"))
+        throw new InvalidDataException("T024 MCP source signal fixture omitted or forged evidence.");
+}
+var invalidSignalRevision = await client.CallToolAsync("archpulse_feature_signals",
+    new Dictionary<string, object?> {
+        ["project"] = signalProject, ["revision"] = "not-a-stored-revision"
+    });
+if (invalidSignalRevision.IsError != true)
+    throw new InvalidDataException("MCP feature discovery accepted an unknown revision.");
 
 var resourceResult = await client.ReadResourceAsync("ui://archpulse/graph");
 if (!resourceResult.Contents.Any(c => c is TextResourceContents x

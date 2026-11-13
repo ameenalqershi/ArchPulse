@@ -123,7 +123,7 @@ members, claim elevation, corrupted storage, overlapping membership and
 immutable re-import. The separate MCP protocol smoke exercises the seventh
 tool through the official .NET MCP client.
 
-**Not implemented:** T024 automatic signal discovery (APIs/handlers/tests),
+**T024 partial:** a separate [offline Roslyn discovery guide](feature-discovery-local.md) describes candidate source signals from MVC attributes, named handlers and test declarations. Signals are always inferred business hints and **do not** populate this operator-curated catalog. **Not implemented:** full automatic discovery and human review (minimal APIs/OpenAPI/registration verification),
 T025 Guardian/PR impact links, T026 reviewed/locked corrections,
 feature-scoped UI navigation, business acceptance proofs, DataJourney
 and observed feature-level Test Execution Journeys. No S05 or S27 full

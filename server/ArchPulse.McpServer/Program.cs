@@ -41,6 +41,15 @@ builder.Services.AddSingleton(provider =>
     return new FeatureCatalogStore(storePath);
 });
 
+builder.Services.AddSingleton(provider =>
+{
+    var config = provider.GetRequiredService<IConfiguration>();
+    var path = config["ARCHPULSE_GRAPH_STORE"];
+    if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path))
+        throw new InvalidOperationException("ARCHPULSE_GRAPH_STORE must be a trusted local store.");
+    return new FeatureDiscoveryStore(path);
+});
+
 builder.Services.AddMcpServer(options =>
     {
         options.ServerInfo = new Implementation

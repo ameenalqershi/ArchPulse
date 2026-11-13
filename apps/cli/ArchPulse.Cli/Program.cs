@@ -58,6 +58,32 @@ try
         return 0;
     }
 
+    // T024/S05: discover source-only candidates; never auto-approve, create
+    // BusinessFeature membership, or infer that a test passed or endpoint ran.
+    if (args.Length is 4 or 6 && args[0] == "feature-discover" &&
+        args[2] == "--revision" && (args.Length == 4 || args[4] == "--store"))
+    {
+        var analysis = await new SolutionGraphIndexer().AnalyzeSolutionAsync(args[1], args[3]);
+        if (args.Length == 6)
+        {
+            new GraphSnapshotStore(args[5]).Save(analysis.Graph);
+            new FeatureDiscoveryStore(args[5]).Save(analysis.Graph, analysis.FeatureSignals);
+        }
+        Console.WriteLine(JsonSerializer.Serialize(analysis.FeatureSignals, jsonOptions));
+        return 0;
+    }
+
+    if (args.Length == 6 && args[0] == "feature-signals" &&
+        args[2] == "--revision" && args[4] == "--store")
+    {
+        var graph = new GraphSnapshotStore(args[5]).Load(args[1], args[3])
+            ?? throw new FileNotFoundException("Exact graph revision is not stored.");
+        var report = new FeatureDiscoveryStore(args[5]).Load(graph)
+            ?? throw new FileNotFoundException("Feature signals NotIndexed for this revision.");
+        Console.WriteLine(JsonSerializer.Serialize(report, jsonOptions));
+        return 0;
+    }
+
     // T023/S05: trust the local operator to supply business meanings; source
     // symbols are checked against an existing exact graph, never guessed.
     if (args.Length == 8 && args[0] == "feature-import" &&
@@ -142,6 +168,8 @@ try
     Console.Error.WriteLine("  index-solution <.sln> --revision <git-sha> [--store <directory>]");
     Console.Error.WriteLine("  test-links <trusted.sln> --revision <sha> [--store <directory>] [--target <exact-symbol-id>]");
     Console.Error.WriteLine("  index <source-dir> --revision <git-sha> --project <name>");
+    Console.Error.WriteLine("  feature-discover <trusted.sln> --revision <sha> [--store <directory>]");
+    Console.Error.WriteLine("  feature-signals <project> --revision <sha> --store <directory>");
     Console.Error.WriteLine("  feature-import <project> --revision <sha> --store <directory> --manifest <json>");
     Console.Error.WriteLine("  feature-show <project> --revision <sha> --store <directory> [--id <feature-slug>]");
     Console.Error.WriteLine("  graph-show <project> --revision <git-sha> --store <directory>");

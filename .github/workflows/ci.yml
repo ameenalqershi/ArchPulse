@@ -26,6 +26,8 @@ jobs:
         run: dotnet restore ArchPulse.sln --locked-mode
       - name: Restore golden multi-project solution without paid dependencies
         run: dotnet restore examples/billing-multi-project/Billing.sln --locked-mode
+      - name: Restore real MVC/handler/test feature signal fixture without paid dependencies
+        run: dotnet restore examples/feature-signals/FeatureSignals.sln --locked-mode
       - name: Release build
         run: dotnet build ArchPulse.sln --no-restore --configuration Release
       - name: Unit, graph and validator regression tests
@@ -34,6 +36,8 @@ jobs:
         run: bash scripts/ci-mcp-protocol.sh
       - name: Exact source-backed feature catalog import and projection (S05/T023 partial)
         run: bash scripts/ci-feature-atlas.sh
+      - name: Exact Roslyn ASP.NET/Handler/Test source signals (S05/T024 partial)
+        run: bash scripts/ci-feature-discovery.sh
       - name: Native results-only TRX evidence smoke (S33 partial)
         run: bash scripts/ci-test-journey-results.sh
       - name: Explicit local test-run process and content-digest receipt (S33 partial)

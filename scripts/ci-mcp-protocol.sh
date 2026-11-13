@@ -32,6 +32,13 @@ dotnet run --project apps/cli/ArchPulse.Cli --no-build -c Release -- \
   feature-import Billing --revision ci-mcp-fixture --store "$TEMP/graph" \
   --manifest "$TEMP/manifest.json" >"$TEMP/import.json"
 
+# A separate real ASP.NET/Handler/Test source fixture uses the same
+# pre-configured local store but is never converted to approved features.
+dotnet run --project apps/cli/ArchPulse.Cli --no-build -c Release -- \
+  feature-discover examples/feature-signals/FeatureSignals.sln \
+  --revision ci-mcp-fixture --store "$TEMP/graph" >"$TEMP/signals.json"
+jq -e '(.Signals | length) == 4' "$TEMP/signals.json" >/dev/null
+
 ARCHPULSE_GRAPH_STORE="$TEMP/graph" \
 dotnet server/ArchPulse.McpServer/bin/Release/net10.0/ArchPulse.McpServer.dll \
   >"$TEMP/mcp-server.log" 2>&1 &
@@ -55,5 +62,5 @@ if [ "$HEALTHY" != 1 ]; then
   exit 1
 fi
 dotnet run --project tooling/ArchPulse.McpSmoke --no-build -c Release -- \
-  http://127.0.0.1:5231/mcp Billing ci-mcp-fixture
+  http://127.0.0.1:5231/mcp Billing ci-mcp-fixture FeatureSignals
 echo "MCP protocol PASS: real C# client, tools, resources and exact revision."
