@@ -1,0 +1,71 @@
+{
+  "schema": "archpulse-agent-handoff/v1",
+  "taskId": "T028",
+  "specification": "S06",
+  "status": "review",
+  "repository": "https://github.com/ameenalqershi/ArchPulse",
+  "branch": "feat/s06-datajourney-cross-project-t028-20261113",
+  "baseCommit": "4c1d4f660fc255dac7ad838d33b2db9c3f6269be",
+  "workingCommit": "066081a42b7e73ba26faa077bffaaf5abc5278b7",
+  "lastVerifiedAction": "2026-11-13: isolated VPS validation passed on local Git commit 9fe1e60df1a97ed2c072e704db84c9d97502cf11, tree 39d63cdf65046436d6bea5ed262be879e380fb81, identical to the GitHub code commit tree.",
+  "completedSteps": [
+    "Extended S06 with a local Roslyn CLI that links supported C# argument and return flow to exact static call graph evidence.",
+    "Added a trusted three-project fixture with three positive paths, six analysis gaps and three negative controls.",
+    "Documented the experimental design and review boundary in proposed ADR-0012."
+  ],
+  "unverifiedSteps": [
+    "Hosted GitHub Actions and human review on the final PR revision.",
+    "EF Core and SQL lineage, broker transport, serialization semantics and independent runtime evidence.",
+    "Production S06 acceptance and Notion Verified status."
+  ],
+  "changedFiles": [
+    ".github/workflows/ci.yml",
+    "README.md",
+    "apps/cli/ArchPulse.Cli/Program.cs",
+    "docs/decisions/ADR-0012-datajourney-cross-project-PROPOSED.md",
+    "docs/guides/datajourney-cross-project.md",
+    "docs/guides/datajourney-local.md",
+    "engine/ArchPulse.Roslyn/CrossProjectDataJourneyAnalyzer.cs",
+    "engine/ArchPulse.Roslyn/LocalDataJourneyAnalyzer.cs",
+    "engine/ArchPulse.Roslyn/SolutionGraphIndexer.cs",
+    "examples/datajourney-cross-project/Entry/Entry.csproj",
+    "examples/datajourney-cross-project/Entry/Entrypoints.cs",
+    "examples/datajourney-cross-project/Entry/packages.lock.json",
+    "examples/datajourney-cross-project/Journey.slnx",
+    "examples/datajourney-cross-project/Service/RelayService.cs",
+    "examples/datajourney-cross-project/Service/Service.csproj",
+    "examples/datajourney-cross-project/Service/packages.lock.json",
+    "examples/datajourney-cross-project/Storage/Annotations.cs",
+    "examples/datajourney-cross-project/Storage/Storage.csproj",
+    "examples/datajourney-cross-project/Storage/StorageAdapter.cs",
+    "examples/datajourney-cross-project/Storage/packages.lock.json",
+    "scripts/ci-datajourney-cross-project.sh",
+    "docs/operations/agent-handoff/T028-DATAJOURNEY-CROSS-PROJECT-2026-11-13.json"
+  ],
+  "testResults": [
+    "Locked solution and fixture restores succeeded; Release build completed with no warnings or errors.",
+    "247 of 247 .NET tests passed; cross-project and T027 fixtures passed; native MCP protocol smoke passed.",
+    "Repository structure, handoff, ADR and proposed requirement baseline validators passed.",
+    "VPS verification log SHA-256: d9cb863bd9688785a972a30b344bd3358d84f6c6898311cd7bf4b9f44b9cbe68."
+  ],
+  "pullRequests": [
+    "https://github.com/ameenalqershi/ArchPulse/pull/51"
+  ],
+  "externalEffects": [
+    "GitHub code commit created from the identical validated tree. Review branch and PR are reconciled separately against GitHub.",
+    "Opened GitHub PR #51 for human review against protected main."
+  ],
+  "knownBlockers": [
+    "Human approval is required before merge. T028 remains partial."
+  ],
+  "risks": [
+    "Source locations and identifiers are sensitive metadata in some deployments.",
+    "Explicit annotations and static witnesses do not establish runtime transport or privacy compliance."
+  ],
+  "nextSafeAction": "Reconcile the PR and exact GitHub checks, then review bounded EF Core and broker adapters against S06 without merging static and runtime evidence.",
+  "requiredCapabilities": [
+    "GitHub PR and Actions access",
+    "Notion T028/S06 read",
+    "Trusted VPS with .NET 10"
+  ]
+}
