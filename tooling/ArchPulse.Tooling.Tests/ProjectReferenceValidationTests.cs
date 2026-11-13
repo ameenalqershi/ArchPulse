@@ -81,6 +81,25 @@ public sealed class ProjectReferenceValidationTests
     }
 
     [Fact]
+    public void RefusesSymlinkedProjectFileInsteadOfReadingOutsideTheRepository()
+    {
+        if (OperatingSystem.IsWindows()) return; // Creation may require Windows developer privilege.
+        using var fixture = new ProjectFixture();
+        string external = Path.Combine(Path.GetTempPath(), "archpulse-external-" +
+            Guid.NewGuid().ToString("N") + ".csproj");
+        try
+        {
+            File.WriteAllText(external, "<Project/>");
+            string local = Path.Combine(fixture.Root, "Link", "Link.csproj");
+            Directory.CreateDirectory(Path.GetDirectoryName(local)!);
+            File.CreateSymbolicLink(local, external);
+            Assert.Contains(ProjectReferenceChecker.Validate(fixture.Root),
+                error => error.Contains("Symlinked project file is not allowed", StringComparison.Ordinal));
+        }
+        finally { File.Delete(external); }
+    }
+
+    [Fact]
     public void IgnoresGeneratedProjectsUnderObj()
     {
         using var fixture = new ProjectFixture();

@@ -20,7 +20,16 @@ public static class ProjectReferenceChecker
         if (!Directory.Exists(absoluteRoot))
             return ["Project reference root does not exist."];
 
-        var paths = ListProjects(absoluteRoot).OrderBy(x => x, StringComparer.Ordinal).ToArray();
+        var discovered = ListProjects(absoluteRoot).OrderBy(x => x, StringComparer.Ordinal).ToArray();
+        // Never dereference project-file symlinks: they could lead outside the checkout.
+        var paths = new List<string>();
+        foreach (string path in discovered)
+        {
+            if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
+                errors.Add($"Symlinked project file is not allowed: {Path.GetRelativePath(absoluteRoot, path).Replace('\\', '/')}.");
+            else
+                paths.Add(path);
+        }
         var graph = paths.ToDictionary(x => x, _ => new List<string>(), StringComparer.Ordinal);
         foreach (string path in paths)
         {

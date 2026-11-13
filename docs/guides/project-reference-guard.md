@@ -12,6 +12,7 @@ MSBuild, loading the solution, or executing a project's custom targets.
 - The resulting project-reference graph must have no cycles, including a
   self-reference. Errors identify relative project paths only.
 - XML DTDs are prohibited, so XML entity declarations cannot be expanded.
+- Symbolic-link project files are rejected rather than read outside the checkout.
 - MSBuild expressions or wildcard references are **not evaluated**: their
   presence is an explicit validation failure, not guessed dependency evidence.
 - Generated project files in `bin` and `obj`, and dependency directories,

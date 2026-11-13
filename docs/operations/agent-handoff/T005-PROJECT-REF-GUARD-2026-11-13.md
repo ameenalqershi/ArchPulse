@@ -6,7 +6,7 @@
 - No cross-module dependency was introduced; existing repository validator
   and existing tooling test project were extended.
 - Verified locally: locked restore, Release build without warnings/errors,
-  68/68 tooling tests (8 new project reference cases), native foundation
+  69/69 tooling tests (9 new project reference cases), native foundation
   checker. See PR for additional exact-revision full-suite/CI results.
 - No project files were executed during scanning; the tool parses XML with
   DTD processing prohibited.
