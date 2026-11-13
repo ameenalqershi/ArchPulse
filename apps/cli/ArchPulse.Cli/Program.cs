@@ -58,6 +58,43 @@ try
         return 0;
     }
 
+    // T023/S05: trust the local operator to supply business meanings; source
+    // symbols are checked against an existing exact graph, never guessed.
+    if (args.Length == 8 && args[0] == "feature-import" &&
+        args[2] == "--revision" && args[4] == "--store" && args[6] == "--manifest")
+    {
+        var graph = new GraphSnapshotStore(args[5]).Load(args[1], args[3])
+            ?? throw new FileNotFoundException("The exact indexed graph is required.");
+        var info = new FileInfo(args[7]);
+        if (!info.Exists || info.Length > 2_000_000)
+            throw new InvalidDataException("Feature manifest must exist and be at most 2MB.");
+        var catalog = FeatureCatalogStore.Parse(File.ReadAllText(args[7]));
+        new FeatureCatalogStore(args[5]).Save(graph, catalog);
+        Console.WriteLine(JsonSerializer.Serialize(new
+        {
+            schema = catalog.Schema, graph.Project, graph.Revision,
+            importedFeatures = catalog.Features.Count,
+            membershipScope = "ManualCandidateMembership",
+            executionStatus = "Unknown"
+        }, jsonOptions));
+        return 0;
+    }
+
+    if (args.Length is 6 or 8 && args[0] == "feature-show" &&
+        args[2] == "--revision" && args[4] == "--store" &&
+        (args.Length == 6 || args[6] == "--id"))
+    {
+        var graph = new GraphSnapshotStore(args[5]).Load(args[1], args[3])
+            ?? throw new FileNotFoundException("The exact indexed graph is required.");
+        var catalog = new FeatureCatalogStore(args[5]).Load(graph)
+            ?? throw new FileNotFoundException("No feature catalog for the exact graph revision.");
+        object result = args.Length == 8
+            ? FeatureAtlas.Project(graph, catalog, args[7])
+            : catalog;
+        Console.WriteLine(JsonSerializer.Serialize(result, jsonOptions));
+        return 0;
+    }
+
     if (args.Length == 6 && args[0] == "index"
         && args[2] == "--revision" && args[4] == "--project")
     {
@@ -105,13 +142,15 @@ try
     Console.Error.WriteLine("  index-solution <.sln> --revision <git-sha> [--store <directory>]");
     Console.Error.WriteLine("  test-links <trusted.sln> --revision <sha> [--store <directory>] [--target <exact-symbol-id>]");
     Console.Error.WriteLine("  index <source-dir> --revision <git-sha> --project <name>");
+    Console.Error.WriteLine("  feature-import <project> --revision <sha> --store <directory> --manifest <json>");
+    Console.Error.WriteLine("  feature-show <project> --revision <sha> --store <directory> [--id <feature-slug>]");
     Console.Error.WriteLine("  graph-show <project> --revision <git-sha> --store <directory>");
     Console.Error.WriteLine("  graph-diff <project> --from <sha> --to <sha> --store <directory>");
     Console.Error.WriteLine("  guardian <project> --revision <sha> --store <directory> --rules <json>");
     return 2;
 }
 catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException
-                           or InvalidOperationException or JsonException)
+                           or InvalidOperationException or JsonException or KeyNotFoundException)
 {
     Console.Error.WriteLine(ex.Message);
     return 1;

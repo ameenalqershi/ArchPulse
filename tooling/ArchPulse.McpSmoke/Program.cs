@@ -22,7 +22,7 @@ var tools = await client.ListToolsAsync();
 string[] needed = [
     "archpulse_open_graph", "archpulse_graph_snapshot", "archpulse_symbol_context",
     "archpulse_find_evidenced_path", "archpulse_guardian_check",
-    "archpulse_linked_tests"
+    "archpulse_linked_tests", "archpulse_feature_scope"
 ];
 var names = tools.Select(t => t.Name).ToHashSet(StringComparer.Ordinal);
 foreach (var neededTool in needed)
@@ -70,6 +70,29 @@ if (firstMethod.ValueKind != JsonValueKind.Undefined)
             ("NotIndexed" or "Unmapped" or "MappedDirectStatic"))
         throw new InvalidDataException("MCP static test links incorrectly inferred runtime outcomes.");
 }
+
+// T023: a real authored feature is selected through the live MCP protocol.
+var featureResult = await client.CallToolAsync("archpulse_feature_scope",
+    new Dictionary<string, object?> {
+        ["project"] = args[1], ["revision"] = args[2],
+        ["featureId"] = "create-invoice"
+    });
+if (featureResult.IsError == true ||
+    featureResult.StructuredContent is not JsonElement feature ||
+    feature.GetProperty("schema").GetString() != "archpulse.feature-scope/v1" ||
+    feature.GetProperty("nodes").GetArrayLength() != 2 ||
+    feature.GetProperty("staticEdges").GetArrayLength() < 1 ||
+    feature.GetProperty("executionStatus").GetString() != "Unknown" ||
+    feature.GetProperty("observedCoverage").GetBoolean() ||
+    feature.GetProperty("feature").GetProperty("members")[0]
+        .GetProperty("claim").GetString() != "Designed")
+    throw new InvalidDataException("MCP feature scope fabricated evidence or lost static membership.");
+var unknownFeature = await client.CallToolAsync("archpulse_feature_scope",
+    new Dictionary<string, object?> {
+        ["project"] = args[1], ["revision"] = args[2], ["featureId"] = "invented"
+    });
+if (unknownFeature.IsError != true)
+    throw new InvalidDataException("MCP tool did not reject an unknown feature.");
 
 var resourceResult = await client.ReadResourceAsync("ui://archpulse/graph");
 if (!resourceResult.Contents.Any(c => c is TextResourceContents x

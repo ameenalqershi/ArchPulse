@@ -41,6 +41,10 @@ incremental graphs, durable graph versioning, architectural rules,
 FeatureAtlas, DataJourney, Web Studio, MCP Apps, runtime traces, Futures,
 AI collaboration or production hardening. S02/S03 remain incomplete.
 
+## Experimental manually curated FeatureAtlas (2026-11-13)
+
+T023/S05 now has an **implemented partial** native C# feature catalog that requires an already indexed exact graph revision and an operator-provided candidate mapping. See the [local FeatureAtlas guide](feature-atlas-local.md) for the `feature-import`, `feature-show`, read-only API and seventh MCP tool. This does not automatically discover business features, validate them by tests, observe execution or complete the proposed S05 architecture.
+
 ## Legacy Python retirement
 
 The four prior foundation/traceability Python scripts were analyzed and
