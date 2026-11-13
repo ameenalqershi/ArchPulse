@@ -11,6 +11,7 @@ authenticated production deployment.
 - GET /api/graphs/{project}/{revision}/neighbors?symbolId=...: exact symbol relationships.
 - GET /api/graphs/{project}/{revision}/path?from=...&to=...: bounded shortest sourced path.
 - GET /api/graphs/{project}/diff?from=...&to=...: compares immutable revision snapshots.
+- GET /api/graphs/{project}/{revision}/datajourney-local: bounded static candidate source/sink and return **metadata** from T027, not observed values or security proof ([guide](datajourney-local.md)).
 - GET /api/graphs/{project}/{revision}/feature-reviews: read-only local operator-declared hash-chained candidate review history, not authenticated or Verified ([guide](feature-review-local.md)).
 - GET /api/graphs/{project}/feature-impact?from=...&to=...: read-only two-revision structural candidate impact; not a complete Git PR or runtime behavior analysis ([guide](feature-impact-local.md)).
 - GET /api/graphs/{project}/{revision}/feature-signals: separately indexed, read-only T024 source candidates; `NotIndexed` if absent, HTTP 422 if invalid, no automatic business membership ([guide](feature-discovery-local.md)).

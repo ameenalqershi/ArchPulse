@@ -23,7 +23,8 @@ string[] needed = [
     "archpulse_open_graph", "archpulse_graph_snapshot", "archpulse_symbol_context",
     "archpulse_find_evidenced_path", "archpulse_guardian_check",
     "archpulse_linked_tests", "archpulse_feature_scope", "archpulse_feature_signals",
-    "archpulse_feature_impact", "archpulse_feature_reviews"
+    "archpulse_feature_impact", "archpulse_feature_reviews",
+    "archpulse_datajourney_local"
 ];
 var names = tools.Select(t => t.Name).ToHashSet(StringComparer.Ordinal);
 foreach (var neededTool in needed)
@@ -177,6 +178,27 @@ var missingImpact = await client.CallToolAsync("archpulse_feature_impact",
     });
 if (missingImpact.IsError != true)
     throw new InvalidDataException("MCP feature impact accepted an unknown revision.");
+
+// T027: static annotations yield conservative value-flow candidates,
+ // NEVER an observed privacy-safe statement. No plaintext values in result.
+var flow = await client.CallToolAsync("archpulse_datajourney_local",
+    new Dictionary<string, object?> {
+        ["project"] = "DataJourney", ["revision"] = args[2]
+    });
+if (flow.IsError == true || flow.StructuredContent is not JsonElement flowData ||
+    flowData.GetProperty("schema").GetString() != "archpulse.datajourney-local/v1" ||
+    flowData.GetProperty("runtimeStatus").GetString() != "Unknown" ||
+    flowData.GetProperty("findings").GetArrayLength() != 9 ||
+    !flowData.GetProperty("findings").EnumerateArray().Any(f =>
+        f.GetProperty("outcome").GetString() == "StaticPossibleRisk") ||
+    flowData.ToString().Contains("DO-NOT-STORE-PAYLOAD", StringComparison.Ordinal))
+    throw new InvalidDataException("MCP DataJourney flow was missing or promoted unproven privacy.");
+var missingFlow = await client.CallToolAsync("archpulse_datajourney_local",
+    new Dictionary<string, object?> {
+        ["project"] = "DataJourney", ["revision"] = "nonexistent-revision"
+    });
+if (missingFlow.IsError != true)
+    throw new InvalidDataException("DataJourney MCP accepted an unknown revision.");
 
 var resourceResult = await client.ReadResourceAsync("ui://archpulse/graph");
 if (!resourceResult.Contents.Any(c => c is TextResourceContents x

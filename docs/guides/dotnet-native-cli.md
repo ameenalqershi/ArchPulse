@@ -53,6 +53,10 @@ The new `feature-discover <trusted.sln> --revision <sha> [--store <path>]` CLI a
 
 The native `feature-impact <project> --from <revision> --to <revision> --store <path>` command compares exact saved graph structures against a human-curated FROM revision candidate feature catalog. Its direct-member and static call-path signals are **not** a full PR diff, verified business impact, runtime trace or test result. See [reproducible analysis and limits](feature-impact-local.md).
 
+## DataJourney local source-only value-flow (T027/S06, partial)
+
+Use `datajourney-local <trusted.sln> --revision <sha> [--store <dir>]` to analyze an explicit trusted C# solution with Roslyn and persist only static source/sink/return **metadata**; read the immutable sidecar with `datajourney-show <project> --revision <sha> --store <dir>`. No runtime values, proof of sanitization or production-grade taint tracking ([guide](datajourney-local.md)).
+
 ## Local operator-declared candidate review (T026/S05; 2026-11-13)
 
 `feature-review-show` reads an exact candidate catalog's review history. `feature-review-record <project> --revision <sha> --store <path> --request <json> --confirm-local-human-review` adds one immutable SHA256-chained local operator-declared review or rollback receipt with optimistic head checks. Reviewer labels are **not authenticated**, and no business claim is promoted to Verified. [Reproduction and security limits](feature-review-local.md).

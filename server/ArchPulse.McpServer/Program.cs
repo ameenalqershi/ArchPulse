@@ -58,6 +58,13 @@ builder.Services.AddSingleton(provider =>
         throw new InvalidOperationException("ARCHPULSE_GRAPH_STORE must be an existing trusted local store.");
     return new FeatureReviewJournal(path);
 });
+builder.Services.AddSingleton(provider =>
+{
+    var path = provider.GetRequiredService<IConfiguration>()["ARCHPULSE_GRAPH_STORE"];
+    if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path))
+        throw new InvalidOperationException("DataJourney requires an existing trusted local store.");
+    return new LocalDataJourneyStore(path);
+});
 builder.Services.AddMcpServer(options =>
     {
         options.ServerInfo = new Implementation

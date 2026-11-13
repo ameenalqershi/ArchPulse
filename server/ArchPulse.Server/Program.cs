@@ -47,6 +47,13 @@ builder.Services.AddSingleton(provider =>
         ?? Path.Combine(Path.GetTempPath(), "archpulse-graph");
     return new FeatureReviewJournal(path);
 });
+builder.Services.AddSingleton(provider =>
+{
+    var config = provider.GetRequiredService<IConfiguration>();
+    var path = config["ARCHPULSE_GRAPH_STORE"]
+        ?? Path.Combine(Path.GetTempPath(), "archpulse-graph");
+    return new LocalDataJourneyStore(path);
+});
 var app = builder.Build();
 
 app.MapGet("/health", () => Results.Ok(new
@@ -62,6 +69,43 @@ app.MapGet("/api/graphs/{project}/{revision}", (GraphSnapshotStore store,
     var graph = store.Load(project, revision);
     return graph is null ? Results.NotFound() : Results.Ok(graph);
 });
+
+// T027/S06 experimental metadata-only local method DataJourney.
+ // Does not run compilation from HTTP; annotations, sanitizer claims and
+ // 'NoCandidateInSubset' are NOT validated privacy or runtime guarantees.
+app.MapGet("/api/graphs/{project}/{revision}/datajourney-local",
+    (GraphSnapshotStore graphs, LocalDataJourneyStore journey,
+     string project, string revision) =>
+    {
+        var graph = graphs.Load(project, revision);
+        if (graph is null) return Results.NotFound();
+        try
+        {
+            var report = journey.Load(graph);
+            if (report is null)
+                return Results.Ok(new
+                {
+                    schema = LocalDataJourneyContract.Schema, project, revision,
+                    journeyStatus = "NotIndexed", scope = LocalDataJourneyContract.Scope,
+                    runtimeStatus = LocalDataJourneyContract.RuntimeStatus,
+                    findings = Array.Empty<LocalDataFlowFinding>()
+                });
+            if (report.Findings.Count > 500)
+                return Results.Problem("DataJourney response exceeds local read bound.",
+                    statusCode: 413);
+            return Results.Ok(report);
+        }
+        catch (InvalidDataException)
+        {
+            return Results.Problem("Source-derived DataJourney sidecar failed validation.",
+                statusCode: 422);
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return Results.Problem("Source-derived DataJourney sidecar is malformed.",
+                statusCode: 422);
+        }
+    });
 
 // T024/S05: previously indexed source-signal candidates only. No on-demand
 // MSBuild evaluation, route registration, feature auto-approval or test execution.

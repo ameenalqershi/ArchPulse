@@ -57,6 +57,12 @@ dotnet run --project apps/cli/ArchPulse.Cli --no-build -c Release -- \
   --revision ci-mcp-fixture --store "$TEMP/graph" >"$TEMP/signals.json"
 jq -e '(.Signals | length) == 4' "$TEMP/signals.json" >/dev/null
 
+# T027: real trusted C# source corpus, exact revision, metadata only.
+dotnet run --project apps/cli/ArchPulse.Cli --no-build -c Release -- \
+  datajourney-local examples/datajourney-local/DataJourney.sln \
+  --revision ci-mcp-fixture --store "$TEMP/graph" > "$TEMP/datajourney.json"
+jq -e '(.Findings | length) == 9' "$TEMP/datajourney.json" >/dev/null
+
 ARCHPULSE_GRAPH_STORE="$TEMP/graph" \
 dotnet server/ArchPulse.McpServer/bin/Release/net10.0/ArchPulse.McpServer.dll \
   >"$TEMP/mcp-server.log" 2>&1 &

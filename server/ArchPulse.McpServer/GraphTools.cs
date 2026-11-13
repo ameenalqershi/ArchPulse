@@ -104,6 +104,34 @@ public sealed class GraphTools
         catch (JsonException) { return Failure("Stored test links are malformed."); }
     }
 
+    [McpServerTool(Name = "archpulse_datajourney_local", ReadOnly = true)]
+    [Description("Read exact-revision metadata-only Roslyn local source/assignment/return/declared-sink candidate flows. 'NoCandidateInSubset' is NOT proof of privacy safety and sanitizer declarations are NOT proven safe. No input values or runtime traces.")]
+    public static CallToolResult LocalDataJourney(
+        GraphSnapshotStore graphs, LocalDataJourneyStore journeys,
+        string project, string revision)
+    {
+        var graph = ReadValidated(graphs, project, revision);
+        if (graph is null) return Failure("Exact DataJourney graph revision not indexed.");
+        try
+        {
+            var report = journeys.Load(graph);
+            if (report is null)
+                return Success("Local DataJourney NotIndexed, NOT evidence of no sensitive flow.",
+                    new { schema = LocalDataJourneyContract.Schema,
+                        project, revision, journeyStatus = "NotIndexed",
+                        scope = LocalDataJourneyContract.Scope,
+                        runtimeStatus = LocalDataJourneyContract.RuntimeStatus,
+                        findings = Array.Empty<LocalDataFlowFinding>() });
+            if (report.Findings.Count > 500)
+                return Failure("DataJourney findings exceed bounded local MCP response.");
+            return Success("Conservative static annotation-only flow candidates; "
+                + "no values, authenticated sanitizer, observed runtime or security proof.",
+                report);
+        }
+        catch (InvalidDataException) { return Failure("DataJourney source evidence failed validation."); }
+        catch (JsonException) { return Failure("DataJourney sidecar could not be parsed."); }
+    }
+
     [McpServerTool(Name = "archpulse_feature_signals", ReadOnly = true)]
     [Description("Read exact-revision Roslyn source signals for human business-feature review. Never an approved mapping, registered runtime endpoint or observed test.")]
     public static CallToolResult FeatureSignals(
