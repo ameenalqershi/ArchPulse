@@ -33,6 +33,8 @@ no values or payloads and is printed only to the local CLI. Use trusted
 solutions because MSBuild evaluates project files. Treat report files as
 source metadata and keep them within the corresponding access boundary.
 
+For directional policy evaluation and a local HTML report, see [DataJourney policy review](datajourney-review.md).
+
 ## Reproduce
 
 ```bash

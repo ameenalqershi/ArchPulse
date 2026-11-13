@@ -33,6 +33,10 @@ public static class Entrypoints
         RelayService.Save(label: "later", value: input);
     }
 
+    public static void DynamicSql([SensitiveSource] string input) => RelayService.DynamicSql(input);
+
+    public static void Reflection([SensitiveSource] string input) => RelayService.Reflection(input);
+
     public static void Overwrite([SensitiveSource] string input) => RelayService.Overwrite(input);
 
     public static void Unmarked(string input) => RelayService.Save("literal", input);

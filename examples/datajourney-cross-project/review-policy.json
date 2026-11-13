@@ -1,0 +1,30 @@
+{
+  "sourceMethods": {
+    "Entry::M:JourneyFixture.Entrypoints.Named(System.String)": "Confidential",
+    "Entry::M:JourneyFixture.Entrypoints.ReturnRoundTrip(System.String)": "Confidential",
+    "Service::M:JourneyFixture.RelayService.Read": "Restricted",
+    "Entry::M:JourneyFixture.Entrypoints.ClaimedSanitizer(System.String)": "Confidential"
+  },
+  "projectZones": {
+    "Entry": "Entry",
+    "Service": "Service",
+    "Storage": "Storage"
+  },
+  "grants": [
+    {
+      "from": "Entry",
+      "to": "Service",
+      "classification": "Confidential"
+    },
+    {
+      "from": "Service",
+      "to": "Storage",
+      "classification": "Confidential"
+    },
+    {
+      "from": "Entry",
+      "to": "Storage",
+      "classification": "Confidential"
+    }
+  ]
+}
