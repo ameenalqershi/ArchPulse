@@ -100,6 +100,7 @@ public static partial class RepositoryChecker
                 errors.Add($"{name}: do not fabricate verified statuses");
         }
         errors.AddRange(ProjectReferenceChecker.Validate(root));
+        errors.AddRange(SolutionMembershipChecker.Validate(root));
         errors.AddRange(HandoffChecker.Validate(root));
         return errors;
     }

@@ -17,6 +17,11 @@ MSBuild, loading the solution, or executing a project's custom targets.
   presence is an explicit validation failure, not guessed dependency evidence.
 - Generated project files in `bin` and `obj`, and dependency directories,
   are skipped. This is a source-tree contract, not a built-artifact inspector.
+- The root `ArchPulse.sln` is checked for valid C# project entries with existing
+  `.csproj` files inside the checkout, unique project GUIDs and normalized paths.
+  Solution folders are excluded from project-path checks. Absolute, dynamic,
+  traversing and symlinked project paths (including symlink parents) are rejected.
+  This does **not** require every example `.csproj` to be part of the root solution.
 
 Run:
 
@@ -28,9 +33,11 @@ dotnet test tooling/ArchPulse.Tooling.Tests/ArchPulse.Tooling.Tests.csproj -c Re
 ```
 
 The same `RepositoryChecker` is invoked by Foundation CI, so a newly added
-broken direct reference or cycle fails a PR. Tests include a valid DAG,
-Windows-style separators, dangling references, root escape attempts, cycles,
-self-cycles, XML DTD, unsupported MSBuild expressions, and generated directories.
+broken direct reference, cycle or invalid root-solution project entry fails a PR.
+Regression fixtures cover a valid DAG, Windows-style separators, dangling
+references, root escape, cycles, self-cycles, XML DTD, unsupported MSBuild
+expressions, generated directories, and malformed/duplicate/escaped/symlinked
+solution entries.
 
 ## What this does not prove
 
