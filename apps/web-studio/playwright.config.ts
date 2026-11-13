@@ -9,7 +9,7 @@ export default defineConfig({
   reporter: 'list',
   timeout: 20_000,
   use: {
-    baseURL: 'http://127.0.0.1:5174',
+    baseURL: process.env.ARCHPULSE_STUDIO_BASE_URL ?? 'http://127.0.0.1:5174',
     headless: true,
     browserName: 'chromium',
     viewport: { width: 1330, height: 860 },

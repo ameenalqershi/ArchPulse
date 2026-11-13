@@ -6,6 +6,7 @@ import {
 import type { GraphEdge, GraphNode, GraphSnapshot } from './graph';
 import { parseMethodTestSelection } from './test-links';
 import type { MethodTestSelection } from './test-links';
+import { DataJourneyPanel } from './datajourney-panel';
 
 type Point = { x: number; y: number };
 type FetchState = 'idle' | 'loading' | 'loaded' | 'error';
@@ -120,6 +121,13 @@ export function App() {
     setContextNotice('');
     resetView();
   }, [resetView]);
+
+  function selectJourneyMethod(id: string) {
+    const node = graph?.nodes.find(candidate => candidate.symbolId === id);
+    if (!node || id === selectedId) return;
+    enterScope(node.parentSymbolId ?? id);
+    setSelectedId(id);
+  }
 
   const goBack = useCallback(() => {
     if (!graph || !scope) return;
@@ -265,6 +273,9 @@ export function App() {
         <p className="muted small">Test declarations are not runner-discovered test cases. No observed calls, coverage,
           test execution, or pass/fail status is available from these links.</p>
       </section>}
+      {graph && selected.kind === "Method" && <DataJourneyPanel
+        key={JSON.stringify([graph.project, graph.revision, selected.symbolId])}
+        graph={graph} symbolId={selected.symbolId} onSelect={selectJourneyMethod} />}
       <h4>Evidence-backed edges ({selectedEdges.length})</h4>
       {selectedEdges.length === 0 && <p className="muted">No graph edges mapped.</p>}
       <div className="edge-list">

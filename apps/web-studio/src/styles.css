@@ -77,3 +77,20 @@ footer { margin: 17px 0 10px; color: #708298; font-size: 11px; }
   background: white; border: 1px solid #dbe5f1; border-radius: 8px; }
 .test-link ul { margin: 2px 0; padding-left: 15px; font-size: 11px; }
 .test-unavailable { color: #82501d; font-size: 12px; line-height: 1.5; }
+
+.datajourney details {
+  margin-block: .5rem;
+  padding: .55rem;
+  border: 1px solid currentColor;
+  border-radius: .4rem;
+}
+.datajourney summary { cursor: pointer; }
+.datajourney ol { padding-inline-start: 1.4rem; }
+.datajourney li > * { display: block; margin-block: .2rem; }
+.datajourney .journey-method {
+  max-width: 100%;
+  padding: .25rem;
+  text-align: start;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}

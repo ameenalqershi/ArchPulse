@@ -125,3 +125,18 @@ jobs:
         run: npm run test --prefix apps/web-studio
       - name: Audit frontend packages
         run: npm audit --prefix apps/web-studio --audit-level=high
+      - name: Install .NET SDK for local DataJourney integration
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73
+        with:
+          dotnet-version: 10.0.x
+      - name: Restore and build DataJourney CLI and API
+        run: |
+          dotnet restore apps/cli/ArchPulse.Cli/ArchPulse.Cli.csproj --locked-mode
+          dotnet restore server/ArchPulse.Server/ArchPulse.Server.csproj --locked-mode
+          dotnet restore examples/datajourney-cross-project/Journey.slnx --locked-mode
+          dotnet build apps/cli/ArchPulse.Cli/ArchPulse.Cli.csproj --no-restore -c Release
+          dotnet build server/ArchPulse.Server/ArchPulse.Server.csproj --no-restore -c Release
+      - name: Install Chromium for DataJourney browser test
+        run: npm exec --prefix apps/web-studio -- playwright install --with-deps chromium
+      - name: DataJourney graph-to-browser evidence navigation (T030 partial)
+        run: bash scripts/ci-datajourney-studio.sh

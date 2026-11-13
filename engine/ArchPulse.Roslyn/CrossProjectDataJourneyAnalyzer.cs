@@ -7,31 +7,14 @@ using Microsoft.CodeAnalysis.Operations;
 
 namespace ArchPulse.Roslyn;
 
-public enum DataJourneyHopKind { Argument, Return }
-
-public enum DataJourneyBoundary
-{
-    AnnotatedSink, OpaqueCall, UnsupportedSyntax, DeclaredSanitizer, AnalysisLimit
-}
-
-public sealed record DataJourneyHop(DataJourneyHopKind Kind, GraphEdge Call);
-
-public sealed record CrossProjectDataFlow(
-    string SourceMethodSymbolId, SourceEvidence Source, IReadOnlyList<DataJourneyHop> Hops,
-    DataJourneyBoundary Boundary, SourceEvidence Destination);
-
-public sealed record CrossProjectDataJourneyReport(
-    string Schema, string Project, string Revision, EvidenceKind Evidence,
-    string RuntimeStatus, bool Truncated, IReadOnlyList<CrossProjectDataFlow> Findings);
-
 /// <summary>Static string-flow witnesses through bounded, directly bound source calls.</summary>
 internal sealed class CrossProjectDataJourneyAnalyzer
 {
     private const int MaxDepth = 5;
     private const int MaxStatements = 128;
-    private const int MaxHops = 16;
+    private const int MaxHops = CrossProjectDataJourneyStore.MaxHops;
     private const int MaxStepsPerRoot = 2048;
-    private const int MaxFindings = 512;
+    private const int MaxFindings = CrossProjectDataJourneyStore.MaxFindings;
     private const int MaxStepsPerReport = 100_000;
 
     private readonly GraphSnapshot _graph;
@@ -120,7 +103,7 @@ internal sealed class CrossProjectDataJourneyAnalyzer
             Interpret(method, parameters, []);
         }
 
-        return new("archpulse.datajourney-cross-project/v1", _graph.Project, _graph.Revision,
+        return new(CrossProjectDataJourneyStore.Schema, _graph.Project, _graph.Revision,
             EvidenceKind.Static, "Unknown", _truncated, _findings);
     }
 
