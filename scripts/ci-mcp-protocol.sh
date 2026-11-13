@@ -37,6 +37,19 @@ dotnet run --project apps/cli/ArchPulse.Cli --no-build -c Release -- \
   feature-import Billing --revision ci-mcp-fixture --store "$TEMP/graph" \
   --manifest "$TEMP/manifest.json" >"$TEMP/import.json"
 
+# T026: deliberately synthetic local reviewer receipt; no authenticated
+# human identity or verified feature behavior is claimed.
+jq -n --arg source "$source" '{
+  action:"ApproveCandidate", actorKind:"LocalHumanDeclared",
+  actor:"MCP CI synthetic reviewer label", reason:"Fixture only; not actual human acceptance",
+  expectedHead:"GENESIS", featureId:"create-invoice", symbolId:$source
+}' >"$TEMP/review.json"
+dotnet run --project apps/cli/ArchPulse.Cli --no-build -c Release -- \
+  feature-review-record Billing --revision ci-mcp-fixture \
+  --store "$TEMP/graph" --request "$TEMP/review.json" \
+  --confirm-local-human-review >"$TEMP/review-summary.json"
+jq -e '.Sequence == 1' "$TEMP/review-summary.json" >/dev/null
+
 # A separate real ASP.NET/Handler/Test source fixture uses the same
 # pre-configured local store but is never converted to approved features.
 dotnet run --project apps/cli/ArchPulse.Cli --no-build -c Release -- \

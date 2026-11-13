@@ -40,6 +40,8 @@ jobs:
         run: bash scripts/ci-feature-discovery.sh
       - name: Real two-revision static feature impact and source call witness (S05/T025 partial)
         run: bash scripts/ci-feature-impact.sh
+      - name: Immutable local operator feature-review receipt and rollback (S05/T026 partial)
+        run: bash scripts/ci-feature-review.sh
       - name: Native results-only TRX evidence smoke (S33 partial)
         run: bash scripts/ci-test-journey-results.sh
       - name: Explicit local test-run process and content-digest receipt (S33 partial)

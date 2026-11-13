@@ -53,6 +53,10 @@ The new `feature-discover <trusted.sln> --revision <sha> [--store <path>]` CLI a
 
 The native `feature-impact <project> --from <revision> --to <revision> --store <path>` command compares exact saved graph structures against a human-curated FROM revision candidate feature catalog. Its direct-member and static call-path signals are **not** a full PR diff, verified business impact, runtime trace or test result. See [reproducible analysis and limits](feature-impact-local.md).
 
+## Local operator-declared candidate review (T026/S05; 2026-11-13)
+
+`feature-review-show` reads an exact candidate catalog's review history. `feature-review-record <project> --revision <sha> --store <path> --request <json> --confirm-local-human-review` adds one immutable SHA256-chained local operator-declared review or rollback receipt with optimistic head checks. Reviewer labels are **not authenticated**, and no business claim is promoted to Verified. [Reproduction and security limits](feature-review-local.md).
+
 ## Legacy Python retirement
 
 The four prior foundation/traceability Python scripts were analyzed and

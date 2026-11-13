@@ -157,6 +157,33 @@ public sealed class GraphTools
         catch (JsonException) { return Failure("Stored feature catalog is malformed."); }
     }
 
+    [McpServerTool(Name = "archpulse_feature_reviews", ReadOnly = true)]
+    [Description("Read exact-revision local operator-declared, SHA256-chained FeatureAtlas candidate review receipts. Human identity NOT authenticated; NOT proven business coverage or feature approval by maintainers.")]
+    public static CallToolResult FeatureReviews(GraphSnapshotStore graphs,
+        FeatureCatalogStore features, FeatureReviewJournal journal,
+        string project, string revision)
+    {
+        var graph = ReadValidated(graphs, project, revision);
+        if (graph is null) return Failure("Exact graph revision is not indexed.");
+        try
+        {
+            var catalog = features.Load(graph);
+            if (catalog is null)
+                return Success("Candidate feature catalog NotIndexed; no human review claims.",
+                    new { schema = FeatureReviewJournal.Schema, project, revision,
+                        catalogStatus = "NotIndexed", reviewStatus = "NotIndexed",
+                        scope = FeatureReviewJournal.Scope,
+                        history = Array.Empty<FeatureReviewReceipt>() });
+            var summary = journal.Read(graph, catalog);
+            if (summary.History.Count > 200 || summary.Members.Count > 500)
+                return Failure("Review summary exceeds bounded MCP output.");
+            return Success("Local operator-declared review receipts, NOT authenticated identity, "
+                + "source evidence upgrade, runtime observation or approved business test.", summary);
+        }
+        catch (InvalidDataException) { return Failure("Stored local review receipt chain is invalid."); }
+        catch (JsonException) { return Failure("Stored local review receipt cannot be parsed."); }
+    }
+
     [McpServerTool(Name = "archpulse_feature_impact", ReadOnly = true)]
     [Description("Compare two exact local source graph revisions against the FROM revision's candidate feature catalog. Structural static call-path candidates only; not a Git patch, runtime effect, business acceptance, or approved feature.")]
     public static CallToolResult FeatureImpact(

@@ -23,7 +23,7 @@ string[] needed = [
     "archpulse_open_graph", "archpulse_graph_snapshot", "archpulse_symbol_context",
     "archpulse_find_evidenced_path", "archpulse_guardian_check",
     "archpulse_linked_tests", "archpulse_feature_scope", "archpulse_feature_signals",
-    "archpulse_feature_impact"
+    "archpulse_feature_impact", "archpulse_feature_reviews"
 ];
 var names = tools.Select(t => t.Name).ToHashSet(StringComparer.Ordinal);
 foreach (var neededTool in needed)
@@ -125,6 +125,31 @@ var invalidSignalRevision = await client.CallToolAsync("archpulse_feature_signal
     });
 if (invalidSignalRevision.IsError != true)
     throw new InvalidDataException("MCP feature discovery accepted an unknown revision.");
+
+// T026: locally declared synthetic reviewer receipt, never authenticated or
+// elevated to evidence of business verification. MCP exposes READ ONLY.
+if (args.Length == 4)
+{
+    var reviewed = await client.CallToolAsync("archpulse_feature_reviews",
+        new Dictionary<string, object?> { ["project"] = args[1],
+            ["revision"] = args[2] });
+    if (reviewed.IsError == true ||
+        reviewed.StructuredContent is not JsonElement review ||
+        review.GetProperty("scope").GetString() !=
+            "LocalHumanDeclared;NotAuthenticated;NotBusinessVerified" ||
+        review.GetProperty("sequence").GetInt32() != 1 ||
+        !review.GetProperty("members").EnumerateArray().Any(member =>
+            member.GetProperty("disposition").GetString() ==
+                "OperatorApprovedCandidate") ||
+        review.GetProperty("history")[0].GetProperty("actorKind").GetString() !=
+            "LocalHumanDeclared")
+        throw new InvalidDataException("MCP review receipts were missing, promoted or forged.");
+}
+var unknownReview = await client.CallToolAsync("archpulse_feature_reviews",
+    new Dictionary<string, object?> { ["project"] = args[1],
+        ["revision"] = "missing-revision" });
+if (unknownReview.IsError != true)
+    throw new InvalidDataException("MCP review accepted an unknown graph revision.");
 
 // T025: an exact, read-only two-revision candidate impact query. No
 // structural changes must never imply that a full Git PR is unaffected.
