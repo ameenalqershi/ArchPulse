@@ -58,6 +58,37 @@ public sealed class LocalGraphApiTests
     }
 
     [Fact]
+    public async Task NeighborPageEndpointPreservesExactRevisionAndFailsClosed()
+    {
+        using var fixture = new ApiFixture();
+        string url = "/api/graphs/Billing/v1/neighbors-page?symbolId=" +
+            Uri.EscapeDataString("Billing.Service::M:CreateInvoice");
+
+        var page = await fixture.Client.GetFromJsonAsync<JsonElement>(url + "&pageSize=1");
+        Assert.Equal(GraphNeighborPage.ContractSchema, page.GetProperty("schema").GetString());
+        Assert.Equal("Billing", page.GetProperty("project").GetString());
+        Assert.Equal("v1", page.GetProperty("revision").GetString());
+        Assert.Equal("Billing.Service::M:CreateInvoice", page.GetProperty("symbolId").GetString());
+        Assert.Equal("call-1", Assert.Single(page.GetProperty("edges").EnumerateArray()).GetProperty("edgeId").GetString());
+        Assert.False(page.GetProperty("hasMore").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, page.GetProperty("nextAfterEdgeId").ValueKind);
+
+        using var expired = await fixture.Client.GetAsync(url + "&pageSize=1&afterEdgeId=wrong");
+        Assert.Equal(HttpStatusCode.BadRequest, expired.StatusCode);
+        using var excluded = await fixture.Client.GetAsync(url + "&pageSize=101");
+        Assert.Equal(HttpStatusCode.BadRequest, excluded.StatusCode);
+        using var negative = await fixture.Client.GetAsync(url + "&pageSize=-1");
+        Assert.Equal(HttpStatusCode.BadRequest, negative.StatusCode);
+        using var malformed = await fixture.Client.GetAsync(url + "&pageSize=NaN");
+        Assert.Equal(HttpStatusCode.BadRequest, malformed.StatusCode);
+        using var notFound = await fixture.Client.GetAsync(
+            "/api/graphs/Billing/v1/neighbors-page?symbolId=not-a-graph-node");
+        Assert.Equal(HttpStatusCode.NotFound, notFound.StatusCode);
+        using var noRevision = await fixture.Client.GetAsync(url.Replace("/v1/", "/missing/", StringComparison.Ordinal));
+        Assert.Equal(HttpStatusCode.NotFound, noRevision.StatusCode);
+    }
+
+    [Fact]
     public async Task DiffUsesStoredExactRevisions()
     {
         using var fixture = new ApiFixture();

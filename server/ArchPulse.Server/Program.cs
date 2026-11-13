@@ -82,8 +82,8 @@ app.MapGet("/api/graphs/{project}/{revision}", (GraphSnapshotStore store,
 app.MapGet("/api/graphs/{project}/{revision}/datajourney-cross-project", CrossProjectDataJourneyEndpoints.Get);
 
 // T027/S06 experimental metadata-only local method DataJourney.
- // Does not run compilation from HTTP; annotations, sanitizer claims and
- // 'NoCandidateInSubset' are NOT validated privacy or runtime guarantees.
+// Does not run compilation from HTTP; annotations, sanitizer claims and
+// 'NoCandidateInSubset' are NOT validated privacy or runtime guarantees.
 app.MapGet("/api/graphs/{project}/{revision}/datajourney-local",
     (GraphSnapshotStore graphs, LocalDataJourneyStore journey,
      string project, string revision) =>
@@ -96,8 +96,11 @@ app.MapGet("/api/graphs/{project}/{revision}/datajourney-local",
             if (report is null)
                 return Results.Ok(new
                 {
-                    schema = LocalDataJourneyContract.Schema, project, revision,
-                    journeyStatus = "NotIndexed", scope = LocalDataJourneyContract.Scope,
+                    schema = LocalDataJourneyContract.Schema,
+                    project,
+                    revision,
+                    journeyStatus = "NotIndexed",
+                    scope = LocalDataJourneyContract.Scope,
                     runtimeStatus = LocalDataJourneyContract.RuntimeStatus,
                     findings = Array.Empty<LocalDataFlowFinding>()
                 });
@@ -132,7 +135,9 @@ app.MapGet("/api/graphs/{project}/{revision}/feature-signals",
             if (report is null)
                 return Results.Ok(new
                 {
-                    schema = FeatureDiscoveryContract.Schema, project, revision,
+                    schema = FeatureDiscoveryContract.Schema,
+                    project,
+                    revision,
                     discoveryStatus = "NotIndexed",
                     scope = FeatureDiscoveryContract.Scope,
                     runtimeStatus = "Unknown",
@@ -143,9 +148,12 @@ app.MapGet("/api/graphs/{project}/{revision}/feature-signals",
                     statusCode: 413);
             return Results.Ok(new
             {
-                schema = report.Schema, project, revision,
+                schema = report.Schema,
+                project,
+                revision,
                 discoveryStatus = "IndexedCandidates",
-                scope = report.DiscoveryScope, runtimeStatus = report.RuntimeStatus,
+                scope = report.DiscoveryScope,
+                runtimeStatus = report.RuntimeStatus,
                 signals = report.Signals,
                 diagnostics = report.Diagnostics
             });
@@ -175,8 +183,11 @@ app.MapGet("/api/graphs/{project}/{revision}/feature-reviews",
             if (catalog is null)
                 return Results.Ok(new
                 {
-                    schema = FeatureReviewJournal.Schema, project, revision,
-                    catalogStatus = "NotIndexed", reviewStatus = "NotIndexed",
+                    schema = FeatureReviewJournal.Schema,
+                    project,
+                    revision,
+                    catalogStatus = "NotIndexed",
+                    reviewStatus = "NotIndexed",
                     scope = FeatureReviewJournal.Scope,
                     history = Array.Empty<FeatureReviewReceipt>()
                 });
@@ -209,10 +220,13 @@ app.MapGet("/api/graphs/{project}/{revision}/features",
             var catalog = features.Load(graph);
             return Results.Ok(new
             {
-                schema = FeatureAtlas.Schema, project, revision,
+                schema = FeatureAtlas.Schema,
+                project,
+                revision,
                 catalogStatus = catalog is null ? "NotIndexed" : "OperatorCurated",
                 membershipScope = "ManualCandidateMembership",
-                executionStatus = "Unknown", observedCoverage = false,
+                executionStatus = "Unknown",
+                observedCoverage = false,
                 features = catalog?.Features ?? []
             });
         }
@@ -270,7 +284,9 @@ app.MapGet("/api/graphs/{project}/{revision}/test-links",
             return Results.Ok(new
             {
                 schema = "archpulse.method-test-selection/v1",
-                project, revision, targetSymbolId = symbolId,
+                project,
+                revision,
+                targetSymbolId = symbolId,
                 mappingStatus = report is null ? "NotIndexed" :
                     links!.Count == 0 ? "Unmapped" : "MappedDirectStatic",
                 mappingScope = "RoslynStaticDirectOnly",
@@ -297,6 +313,26 @@ app.MapGet("/api/graphs/{project}/{revision}/neighbors",
         if (graph is null) return Results.NotFound();
         try { return Results.Ok(GraphQueries.Neighbors(graph, symbolId)); }
         catch (KeyNotFoundException) { return Results.NotFound(); }
+    });
+
+// T011/S02 first bounded keyset query. Immutable exact-revision, read-only,
+// scan-based prototype; not full permission-scoped T121 pagination.
+app.MapGet("/api/graphs/{project}/{revision}/neighbors-page",
+    (GraphSnapshotStore store, string project, string revision,
+     string symbolId, int? pageSize, string? afterEdgeId) =>
+    {
+        if (string.IsNullOrWhiteSpace(symbolId) || symbolId.Length > 2048 ||
+            (pageSize.HasValue && pageSize.Value is < 1 or > 100) ||
+            (afterEdgeId is not null && (afterEdgeId.Length == 0 || afterEdgeId.Length > 2048)))
+            return Results.BadRequest();
+        var graph = store.Load(project, revision);
+        if (graph is null) return Results.NotFound();
+        try
+        {
+            return Results.Ok(GraphQueries.NeighborsPage(graph, symbolId, pageSize ?? 50, afterEdgeId));
+        }
+        catch (KeyNotFoundException) { return Results.NotFound(); }
+        catch (ArgumentException) { return Results.BadRequest(); }
     });
 
 app.MapGet("/api/graphs/{project}/{revision}/path",
@@ -327,10 +363,14 @@ app.MapGet("/api/graphs/{project}/feature-impact",
             if (catalog is null)
                 return Results.Ok(new
                 {
-                    schema = FeatureImpactAnalyzer.Schema, project, fromRevision = from,
-                    toRevision = to, catalogStatus = "NotIndexed",
+                    schema = FeatureImpactAnalyzer.Schema,
+                    project,
+                    fromRevision = from,
+                    toRevision = to,
+                    catalogStatus = "NotIndexed",
                     evidenceScope = FeatureImpactAnalyzer.Scope,
-                    runtimeStatus = "Unknown", impacts = Array.Empty<FeatureImpactSignal>()
+                    runtimeStatus = "Unknown",
+                    impacts = Array.Empty<FeatureImpactSignal>()
                 });
             var report = FeatureImpactAnalyzer.Assess(before, after, catalog);
             if (report.Impacts.Count > 300)

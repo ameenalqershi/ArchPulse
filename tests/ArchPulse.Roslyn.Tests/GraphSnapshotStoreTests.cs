@@ -60,6 +60,65 @@ public sealed class GraphSnapshotStoreTests
     }
 
     [Fact]
+    public void NeighborPagesRemainOrderedBoundedAndCompleteOnReversedEdges()
+    {
+        var evidence = new SourceEvidence("page-rev", "Page.cs", 1, 1, EvidenceKind.Static);
+        var nodes = Enumerable.Range(0, 11)
+            .Select(index => new GraphNode($"N{index}", GraphNodeKind.Class,
+                $"Node {index}", null, evidence)).ToArray();
+        var edges = Enumerable.Range(1, 9)
+            .Select(index => new GraphEdge($"edge-{index:000}", "N0", $"N{index}",
+                "Calls", evidence))
+            .Append(new GraphEdge("unrelated", "N9", "N10", "Calls", evidence))
+            .Reverse().ToArray();
+        var graph = new GraphSnapshot("Page", "page-rev", nodes, edges, []);
+        string? after = null;
+        var received = new List<string>();
+        for (int i = 0; i < 5; i++)
+        {
+            var page = GraphQueries.NeighborsPage(graph, "N0", 2, after);
+            Assert.Equal(GraphNeighborPage.ContractSchema, page.Schema);
+            Assert.Equal("page-rev", page.Revision);
+            Assert.Equal("N0", page.SymbolId);
+            Assert.InRange(page.Edges.Count, 1, 2);
+            received.AddRange(page.Edges.Select(edge => edge.EdgeId));
+            if (!page.HasMore)
+            {
+                Assert.Null(page.NextAfterEdgeId);
+                break;
+            }
+            Assert.Equal(page.Edges[^1].EdgeId, page.NextAfterEdgeId);
+            after = page.NextAfterEdgeId;
+        }
+        Assert.Equal(Enumerable.Range(1, 9).Select(i => $"edge-{i:000}"), received);
+    }
+
+    [Fact]
+    public void NeighborPageRejectsForgedOrNonIncidentCursorsAndUnsafeLimits()
+    {
+        var evidence = new SourceEvidence("page-rev", "Page.cs", 1, 1, EvidenceKind.Static);
+        var graph = new GraphSnapshot("Page", "page-rev",
+        [
+            new GraphNode("A", GraphNodeKind.Class, "A", null, evidence),
+            new GraphNode("B", GraphNodeKind.Class, "B", null, evidence),
+            new GraphNode("C", GraphNodeKind.Class, "C", null, evidence)
+        ],
+        [
+            new GraphEdge("ab", "A", "B", "Calls", evidence),
+            new GraphEdge("bc", "B", "C", "Calls", evidence)
+        ], []);
+        Assert.Throws<ArgumentOutOfRangeException>(() => GraphQueries.NeighborsPage(graph, "A", 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => GraphQueries.NeighborsPage(graph, "A", 101));
+        Assert.Throws<ArgumentException>(() => GraphQueries.NeighborsPage(graph, "A", 1, "bc"));
+        Assert.Throws<ArgumentException>(() => GraphQueries.NeighborsPage(graph, "A", 1, "unknown"));
+        Assert.Throws<KeyNotFoundException>(() => GraphQueries.NeighborsPage(graph, "unknown"));
+        var last = GraphQueries.NeighborsPage(graph, "A", 1, "ab");
+        Assert.Empty(last.Edges);
+        Assert.False(last.HasMore);
+        Assert.Null(last.NextAfterEdgeId);
+    }
+
+    [Fact]
     public void DiffTracksAddedNodesAcrossRevisions()
     {
         var earlier = MakeGraph("public class A { public void One() {} }", "v1");
@@ -92,8 +151,11 @@ public sealed class GraphSnapshotStoreTests
     public void InvalidEvidenceRevisionIsRejected()
     {
         var graph = MakeGraph("public class A {}", "rev1");
-        var tampered = graph with { Nodes = graph.Nodes.Select(n =>
-            n with { Evidence = n.Evidence with { Revision = "rev2" } }).ToArray() };
+        var tampered = graph with
+        {
+            Nodes = graph.Nodes.Select(n =>
+            n with { Evidence = n.Evidence with { Revision = "rev2" } }).ToArray()
+        };
         Assert.Throws<InvalidDataException>(() => GraphSnapshotStore.Validate(tampered));
     }
 
