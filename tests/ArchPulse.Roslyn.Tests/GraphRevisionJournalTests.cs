@@ -377,6 +377,47 @@ public sealed class GraphRevisionJournalTests
             journal.Append(Graph("r2", "public class B {}"), "r1"));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void CheckpointRejectsDuplicatePropertiesBeforeSnapshotDigestValidation(bool nestedSnapshot)
+    {
+        using var temp = new JournalDirectory();
+        var journal = new GraphRevisionJournal(temp.Path);
+        journal.Append(Graph("r1", "public class A {}"), null);
+        var checkpoint = journal.CreateCheckpoint("Invoices");
+        string original = File.ReadAllText(checkpoint.CheckpointPath);
+        string target = nestedSnapshot
+            ? "\"Snapshot\":{\"Project\":"
+            : "\"Schema\":\"archpulse.graph-journal-checkpoint/v1\",\"Project\":";
+        string replacement = nestedSnapshot
+            ? "\"Snapshot\":{\"Project\":\"spoofed\",\"Project\":"
+            : "\"Schema\":\"archpulse.graph-journal-checkpoint/v1\",\"Project\":\"spoofed\",\"Project\":";
+        Assert.Contains(target, original, StringComparison.Ordinal);
+        File.WriteAllText(checkpoint.CheckpointPath,
+            original.Replace(target, replacement, StringComparison.Ordinal));
+
+        Assert.Throws<InvalidDataException>(() => journal.ReplayFromLatestCheckpoint("Invoices"));
+        Assert.Throws<InvalidDataException>(() => journal.CreateCheckpoint("Invoices"));
+    }
+
+    [Fact]
+    public void CheckpointAnchorRejectsDuplicateEventProperties()
+    {
+        using var temp = new JournalDirectory();
+        var journal = new GraphRevisionJournal(temp.Path);
+        var receipt = journal.Append(Graph("r1", "public class A {}"), null);
+        journal.CreateCheckpoint("Invoices");
+        string original = File.ReadAllText(receipt.EventPath);
+        const string target = "\"Project\":\"Invoices\",\"Revision\":";
+        Assert.Contains(target, original, StringComparison.Ordinal);
+        File.WriteAllText(receipt.EventPath, original.Replace(target,
+            "\"Project\":\"Invoices\",\"Revision\":\"spoofed\",\"Revision\":",
+            StringComparison.Ordinal));
+
+        Assert.Throws<InvalidDataException>(() => journal.ReplayFromLatestCheckpoint("Invoices"));
+    }
+
     private sealed class JournalDirectory : IDisposable
     {
         public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(),

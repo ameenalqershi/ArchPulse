@@ -305,8 +305,9 @@ public sealed class GraphRevisionJournal
         GraphJournalCheckpoint checkpoint;
         try
         {
-            checkpoint = JsonSerializer.Deserialize<GraphJournalCheckpoint>(
-                File.ReadAllBytes(path), JsonOptions)
+            using var document = JsonDocument.Parse(File.ReadAllBytes(path));
+            RejectDuplicateProperties(document.RootElement);
+            checkpoint = document.RootElement.Deserialize<GraphJournalCheckpoint>(JsonOptions)
                 ?? throw new InvalidDataException("Empty graph journal checkpoint.");
         }
         catch (JsonException ex)
@@ -339,8 +340,9 @@ public sealed class GraphRevisionJournal
         GraphJournalEnvelope anchor;
         try
         {
-            anchor = JsonSerializer.Deserialize<GraphJournalEnvelope>(
-                File.ReadAllBytes(anchorPath), JsonOptions)
+            using var document = JsonDocument.Parse(File.ReadAllBytes(anchorPath));
+            RejectDuplicateProperties(document.RootElement);
+            anchor = document.RootElement.Deserialize<GraphJournalEnvelope>(JsonOptions)
                 ?? throw new InvalidDataException("Empty graph checkpoint anchor event.");
         }
         catch (JsonException ex)

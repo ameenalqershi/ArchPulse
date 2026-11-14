@@ -46,7 +46,7 @@ trusted repositories, never arbitrary user-submitted MSBuild projects.
 - Event `0000000000000001.event.json` is an initial full graph baseline;
   subsequent events store changed/added nodes and edges plus removals, exact
   revision diagnostics and the prior event's SHA-256 digest.
-- On-disk event JSON rejects duplicate property names at any object depth before deserialization; a last-value-wins parser cannot conceal ambiguous event fields behind an unchanged reconstructed digest.
+- Both event files and finalized checkpoint/anchor JSON reject duplicate property names at any object depth before deserialization; a last-value-wins parser cannot conceal ambiguous event fields behind an unchanged reconstructed digest.
 - Every replay verifies sequential filenames, schema/version, project ID,
   expected parent revision and parent digest, event digest and resulting
   `GraphSnapshotStore.Validate`. Source evidence is rebound to its exact
