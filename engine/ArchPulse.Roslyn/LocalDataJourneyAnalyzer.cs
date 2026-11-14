@@ -137,14 +137,25 @@ public static class LocalDataJourneyAnalyzer
                             if (model.GetSymbolInfo(call).Symbol is not IMethodSymbol target ||
                                 !Has(target, SinkAttribute)) continue;
                             var values = call.ArgumentList.Arguments.Select(a => Evaluate(a.Expression)).ToArray();
-                            var outcome = unknownContext || values.Any(v => v.IsUnknown)
+                            // A separately unknown, side-effect-free parameter does not
+                            // erase a proven raw argument that reaches this same sink.
+                            // Opaque expressions may mutate other arguments, so they
+                            // still force Unknown instead of a speculative violation.
+                            bool opaqueUnknownArgument = call.ArgumentList.Arguments
+                                .Where((argument, index) => values[index].IsUnknown)
+                                .Any(argument => !IsSimpleReference(argument.Expression));
+                            var outcome = unknownContext || opaqueUnknownArgument
                                 ? LocalFlowOutcome.Unknown
                                 : values.Any(v => v.IsRaw)
                                     ? LocalFlowOutcome.StaticPossibleRisk
-                                    : values.Any(v => v.IsSanitized)
-                                        ? LocalFlowOutcome.DeclaredSanitizerNeedsReview
-                                        : LocalFlowOutcome.NoCandidateInSubset;
-                            var first = values.FirstOrDefault(v => v.IsRaw || v.IsSanitized);
+                                    : values.Any(v => v.IsUnknown)
+                                        ? LocalFlowOutcome.Unknown
+                                        : values.Any(v => v.IsSanitized)
+                                            ? LocalFlowOutcome.DeclaredSanitizerNeedsReview
+                                            : LocalFlowOutcome.NoCandidateInSubset;
+                            var first = outcome == LocalFlowOutcome.StaticPossibleRisk
+                                ? values.First(v => v.IsRaw)
+                                : values.FirstOrDefault(v => v.IsRaw || v.IsSanitized);
                             Emit(id, "annotated-sink:" + (target.GetDocumentationCommentId()
                                  ?? target.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)),
                                 LocalFlowDestination.DeclaredSink, outcome, first.Origin, call.Expression);
@@ -220,6 +231,13 @@ public static class LocalDataJourneyAnalyzer
 
     internal static bool Has(ISymbol symbol, string attribute) =>
         symbol.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == attribute);
+
+    // Only simple local/parameter reads are known to have no call or
+    // assignment side effect during evaluation of other sink arguments.
+    private static bool IsSimpleReference(ExpressionSyntax expression) =>
+        expression is IdentifierNameSyntax ||
+        expression is ParenthesizedExpressionSyntax parentheses &&
+        IsSimpleReference(parentheses.Expression);
 
     private static string Short(string value) =>
         value.Length <= 160 ? value : value[..160];
