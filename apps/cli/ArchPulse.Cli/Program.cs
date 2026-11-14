@@ -150,7 +150,9 @@ try
         new FeatureCatalogStore(args[5]).Save(graph, catalog);
         Console.WriteLine(JsonSerializer.Serialize(new
         {
-            schema = catalog.Schema, graph.Project, graph.Revision,
+            schema = catalog.Schema,
+            graph.Project,
+            graph.Revision,
             importedFeatures = catalog.Features.Count,
             membershipScope = "ManualCandidateMembership",
             executionStatus = "Unknown"
@@ -177,6 +179,28 @@ try
         && args[2] == "--revision" && args[4] == "--project")
     {
         var graph = StaticGraphIndexer.IndexDirectory(args[5], Path.GetFullPath(args[1]), args[3]);
+        Console.WriteLine(JsonSerializer.Serialize(graph, jsonOptions));
+        return 0;
+    }
+
+    // T010/S02 experimental append-only graph projection. The input must be a
+    // previously indexed trusted snapshot; never expose mutation via HTTP/MCP.
+    if (args.Length is 8 or 10 && args[0] == "graph-journal-append" &&
+        args[2] == "--revision" && args[4] == "--store" && args[6] == "--journal" &&
+        (args.Length == 8 || args[8] == "--expected"))
+    {
+        var graph = new GraphSnapshotStore(args[5]).Load(args[1], args[3])
+            ?? throw new FileNotFoundException("Exact graph revision is missing from the snapshot store.");
+        var receipt = new GraphRevisionJournal(args[7]).Append(graph,
+            args.Length == 10 ? args[9] : null);
+        Console.WriteLine(JsonSerializer.Serialize(receipt, jsonOptions));
+        return 0;
+    }
+
+    if (args.Length == 4 && args[0] == "graph-journal-show" && args[2] == "--journal")
+    {
+        var graph = new GraphRevisionJournal(args[3]).Replay(args[1])
+            ?? throw new FileNotFoundException("Graph journal has no committed revisions.");
         Console.WriteLine(JsonSerializer.Serialize(graph, jsonOptions));
         return 0;
     }
@@ -277,6 +301,8 @@ try
     Console.Error.WriteLine("  feature-import <project> --revision <sha> --store <directory> --manifest <json>");
     Console.Error.WriteLine("  feature-show <project> --revision <sha> --store <directory> [--id <feature-slug>]");
     Console.Error.WriteLine("  graph-show <project> --revision <git-sha> --store <directory>");
+    Console.Error.WriteLine("  graph-journal-append <project> --revision <sha> --store <snapshot-dir> --journal <journal-dir> [--expected <current-head>]");
+    Console.Error.WriteLine("  graph-journal-show <project> --journal <journal-dir>");
     Console.Error.WriteLine("  feature-review-show <project> --revision <sha> --store <directory>");
     Console.Error.WriteLine("  feature-review-record <project> --revision <sha> --store <directory> --request <json> --confirm-local-human-review");
     Console.Error.WriteLine("  feature-impact <project> --from <sha> --to <sha> --store <directory>");
