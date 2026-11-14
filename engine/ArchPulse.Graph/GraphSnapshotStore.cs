@@ -69,12 +69,46 @@ public sealed class GraphSnapshotStore
         string path = GetPath(project, revision);
         if (!File.Exists(path)) return null;
         using var stream = File.OpenRead(path);
-        var snapshot = JsonSerializer.Deserialize<GraphSnapshot>(stream, JsonOptions)
-            ?? throw new InvalidDataException("Graph snapshot is empty.");
+        GraphSnapshot snapshot;
+        try
+        {
+            using var document = JsonDocument.Parse(stream);
+            RejectDuplicateProperties(document.RootElement);
+            snapshot = document.RootElement.Deserialize<GraphSnapshot>(JsonOptions)
+                ?? throw new InvalidDataException("Graph snapshot is empty.");
+        }
+        catch (JsonException ex)
+        {
+            // Preserve the original public JsonException contract for callers;
+            // JsonDocument.Parse may otherwise expose a derived reader exception.
+            throw new JsonException("Malformed graph snapshot JSON.", ex);
+        }
         Validate(snapshot);
         if (snapshot.Project != project || snapshot.Revision != revision)
             throw new InvalidDataException("Stored snapshot has a mismatched identity or revision.");
         return snapshot;
+    }
+
+    // Detect ambiguity in the stored JSON before a last-value-wins reader can
+    // collapse repeated source-identity or evidence keys. Do not leak untrusted
+    // property names through the local HTTP error contract.
+    private static void RejectDuplicateProperties(JsonElement element)
+    {
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var property in element.EnumerateObject())
+            {
+                if (!seen.Add(property.Name))
+                    throw new InvalidDataException("Graph snapshot contains duplicate JSON object properties.");
+                RejectDuplicateProperties(property.Value);
+            }
+        }
+        else if (element.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in element.EnumerateArray())
+                RejectDuplicateProperties(item);
+        }
     }
 
     public static GraphDifference Compare(GraphSnapshot previous, GraphSnapshot current)
