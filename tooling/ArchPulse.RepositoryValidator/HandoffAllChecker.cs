@@ -45,6 +45,8 @@ public static partial class HandoffAllChecker
         try
         {
             using var json=JsonDocument.Parse(File.ReadAllText(Path.Combine(folder,"handoff.schema.json")));
+            if (ContainsDuplicateProperties(json.RootElement))
+                return ["handoff schema contains duplicate JSON object keys"];
             schema=json.RootElement.Clone();
             tasks=ReadTasks(Path.Combine(root,"docs/requirements/task-registry.csv"));
         }
@@ -77,6 +79,11 @@ public static partial class HandoffAllChecker
                 {errors.Add(name+": checkpoint exceeds 256 KiB");continue;}
                 raw=File.ReadAllBytes(path);
                 using var json=JsonDocument.Parse(raw);
+                if (ContainsDuplicateProperties(json.RootElement))
+                {
+                    errors.Add(name + ": duplicate JSON object key (ambiguous checkpoint)");
+                    continue;
+                }
                 record=json.RootElement.Clone();
             }
             catch(Exception e) when(e is IOException or JsonException or UnauthorizedAccessException)
@@ -234,6 +241,28 @@ public static partial class HandoffAllChecker
         }
         Walk(r);
         return errors;
+    }
+
+    // System.Text.Json accepts repeated object keys and resolves GetProperty to the last value.
+    // Reject ambiguity at every depth before evaluating claims or applying historical waivers.
+    // Do not include untrusted JSON key names in public CI diagnostics.
+    private static bool ContainsDuplicateProperties(JsonElement element)
+    {
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var property in element.EnumerateObject())
+            {
+                if (!seen.Add(property.Name) || ContainsDuplicateProperties(property.Value))
+                    return true;
+            }
+        }
+        else if (element.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var child in element.EnumerateArray())
+                if (ContainsDuplicateProperties(child)) return true;
+        }
+        return false;
     }
 
     private static bool EmptyArray(JsonElement e)=>e.ValueKind!=JsonValueKind.Array || e.GetArrayLength()==0;
