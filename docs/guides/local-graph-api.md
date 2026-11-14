@@ -135,3 +135,30 @@ body-only blind spots and the read-only HTTP diff schema. Run
 `dotnet restore ArchPulse.sln --locked-mode` followed by Release
 build and `dotnet test ArchPulse.sln -c Release --no-build` on a trusted
 checkout. S02/T011 acceptance and human review remain open.
+
+## Fail-closed locally stored graph corruption — T012/S02 partial (2026-11-14)
+
+A stored GraphSnapshot might have malformed JSON, a mismatched project/revision,
+or invalid graph identity, parent relationship or provenance. On local read
+routes, these cases now produce **HTTP 422 Unprocessable Entity** with a
+generic Problem response rather than an unhandled HTTP 500 or a misleading
+404. The raw JSON, source path, and inner validation exception are never
+included in the HTTP response.
+
+`GraphSnapshotStore.Load` keeps its original InvalidDataException and
+System.Text.Json.JsonException contracts for CLI/MCP consumers. The ASP.NET
+Core pipeline maps those two exceptions to a generic HTTP 422 only on the
+local `/api/graphs` and `/api/guardian` routes, without exposing inner details.
+Missing revisions still yield 404; intact revisions continue to return 200.
+File-system I/O errors, access denials, and unrelated programming failures
+remain different failures; they are not silently rewritten as bad graph data.
+Read-only routes including graph, neighbors and revision diff share this
+failure boundary; graph mutation or automatic repair is NOT introduced.
+
+Regression tests deliberately tamper an isolated saved snapshot with invalid
+JSON, forged project identity, invalid evidence source line and orphan edges.
+Tests check response status and redaction, independent unaffected revision
+readability, health status and missing-revision semantics. Tests are limited
+to this in-memory server and fixtures; no deployment hardening, source attestation,
+cryptographic content hashes, persisted index, filesystem safety audit, or
+production S02/T012 verification is implied.

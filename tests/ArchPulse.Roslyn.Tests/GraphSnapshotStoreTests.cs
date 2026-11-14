@@ -27,6 +27,30 @@ public sealed class GraphSnapshotStoreTests
     }
 
     [Fact]
+    public void CorruptSnapshotJsonRetainsOriginalJsonExceptionForNonHttpConsumers()
+    {
+        using var temp = new TempDirectory();
+        var store = new GraphSnapshotStore(temp.Path);
+        var file = store.Save(MakeGraph("public class A {}", "rev1"));
+        File.WriteAllText(file, "{private-diagnostic-marker");
+        Assert.Throws<System.Text.Json.JsonException>(() => store.Load("Invoices", "rev1"));
+    }
+
+    [Fact]
+    public void MismatchedPersistedIdentityRetainsInvalidDataExceptionAndMissingKeysStayNull()
+    {
+        using var temp = new TempDirectory();
+        var store = new GraphSnapshotStore(temp.Path);
+        var file = store.Save(MakeGraph("public class A {}", "rev1"));
+        var payload = File.ReadAllText(file);
+        Assert.Contains("\"Project\": \"Invoices\"", payload, StringComparison.Ordinal);
+        File.WriteAllText(file, payload.Replace("\"Project\": \"Invoices\"",
+            "\"Project\": \"Forged\"", StringComparison.Ordinal));
+        Assert.Throws<InvalidDataException>(() => store.Load("Invoices", "rev1"));
+        Assert.Null(store.Load("Invoices", "unindexed"));
+    }
+
+    [Fact]
     public void RejectsChangingImmutableSnapshotInSameRevision()
     {
         using var temp = new TempDirectory();

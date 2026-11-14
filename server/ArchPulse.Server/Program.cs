@@ -65,6 +65,31 @@ if (int.TryParse(builder.Configuration["ARCHPULSE_LOCAL_GRAPH_PORT"], out int po
     builder.WebHost.UseUrls($"http://127.0.0.1:{port}");
 var app = builder.Build();
 
+// A corrupted persisted graph is not a missing revision (404) or an
+// unexpected application defect (500). Keep the existing GraphSnapshotStore
+// exception types for CLI/MCP compatibility; translate only documented data
+// validation/deserialization errors on local graph/guardian HTTP routes.
+// File I/O, permissions and unrelated HTTP failures are left untouched.
+static bool CanReportGraphDataError(HttpContext context) =>
+    !context.Response.HasStarted &&
+    (context.Request.Path.StartsWithSegments("/api/graphs") ||
+     context.Request.Path.StartsWithSegments("/api/guardian"));
+
+app.Use(async (context, next) =>
+{
+    try { await next(context); }
+    catch (InvalidDataException) when (CanReportGraphDataError(context))
+    {
+        await Results.Problem("Stored graph snapshot cannot be validated.",
+            statusCode: StatusCodes.Status422UnprocessableEntity).ExecuteAsync(context);
+    }
+    catch (System.Text.Json.JsonException) when (CanReportGraphDataError(context))
+    {
+        await Results.Problem("Stored graph snapshot cannot be validated.",
+            statusCode: StatusCodes.Status422UnprocessableEntity).ExecuteAsync(context);
+    }
+});
+
 app.MapGet("/health", () => Results.Ok(new
 {
     Service = "ArchPulse.GraphReadApi",
