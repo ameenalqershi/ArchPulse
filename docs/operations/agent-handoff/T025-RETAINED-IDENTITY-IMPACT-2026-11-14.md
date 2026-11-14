@@ -19,7 +19,8 @@
 - Locked solution restore: success.
 - Release build: **0 errors / 0 warnings**.
 - Focused FeatureImpactAnalyzerTests: **11/11 PASS**, including stable-ID node location/label and changed call destination provenance, inferred rejection.
-- Full .NET test solution: **290/290 PASS**, zero failures (eight assemblies).
+- Focused in-memory ASP.NET FeatureImpactApiTests: **4/4 PASS**, including string-valued new change kinds, exact FROM/TO evidence and Unknown runtime status. Final full-suite total must be rerun after this additional HTTP test.
+- Full .NET test solution after the new HTTP contract regression: **291/291 PASS**, zero failures (eight assemblies).
 - Native RepositoryValidator and Traceability baseline: PASS.
 - Scoped dotnet format verify for changed C# source/tests and `git diff --check`: PASS.
 - Hosted CI and independent clean published-SHA run: must be checked after publishing PR; **not yet claimed** at this checkpoint.

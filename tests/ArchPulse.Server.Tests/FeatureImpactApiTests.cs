@@ -33,6 +33,26 @@ public sealed class FeatureImpactApiTests
     }
 
     [Fact]
+    public async Task RetainedSymbolChangeAppearsAsExplicitCandidateOnBothRevisionSides()
+    {
+        using var f = new Fixture(true, retainedChange: true);
+        var json = await f.Client.GetFromJsonAsync<JsonElement>(Fixture.Route);
+        Assert.Equal("archpulse.feature-impact/v1", json.GetProperty("schema").GetString());
+        Assert.Equal(4, json.GetProperty("structuralChangesExamined").GetInt32());
+        Assert.Equal("Unknown", json.GetProperty("runtimeStatus").GetString());
+        var impacts = json.GetProperty("impacts").EnumerateArray().ToArray();
+        var before = Assert.Single(impacts, x =>
+            x.GetProperty("changeKind").GetString() == "NodeModifiedBefore");
+        var after = Assert.Single(impacts, x =>
+            x.GetProperty("changeKind").GetString() == "NodeModifiedAfter");
+        Assert.Equal("method:Entry", before.GetProperty("changedSymbolId").GetString());
+        Assert.Equal("method:Entry", after.GetProperty("changedSymbolId").GetString());
+        Assert.Equal("old", before.GetProperty("changeEvidence").GetProperty("revision").GetString());
+        Assert.Equal("new", after.GetProperty("changeEvidence").GetProperty("revision").GetString());
+        Assert.Equal("DirectCandidateMember", after.GetProperty("basis").GetString());
+    }
+
+    [Fact]
     public async Task MissingCatalogDoesNotAssertZeroBusinessImpact()
     {
         using var f = new Fixture(false);
@@ -63,7 +83,7 @@ public sealed class FeatureImpactApiTests
         private readonly WebApplicationFactory<Program> _factory;
         public HttpClient Client { get; }
 
-        public Fixture(bool withCatalog)
+        public Fixture(bool withCatalog, bool retainedChange = false)
         {
             var oldEv = new SourceEvidence("old", "Billing.cs", 7, 1, EvidenceKind.Static);
             var newEv = oldEv with { Revision = "new" };
@@ -75,7 +95,9 @@ public sealed class FeatureImpactApiTests
             var updated = new GraphSnapshot("Billing", "new",
             [
                 new("project:Billing", GraphNodeKind.Project, "Billing", null, newEv),
-                new("method:Entry", GraphNodeKind.Method, "Entry", "project:Billing", newEv),
+                new("method:Entry", GraphNodeKind.Method,
+                    retainedChange ? "EntryUpdated" : "Entry", "project:Billing",
+                    retainedChange ? newEv with { Line = 9 } : newEv),
                 new("method:Changed", GraphNodeKind.Method, "Changed", "project:Billing", newEv)
             ], [new("new-call", "method:Entry", "method:Changed", "Calls", newEv)], []);
             var store = new GraphSnapshotStore(Directory);
