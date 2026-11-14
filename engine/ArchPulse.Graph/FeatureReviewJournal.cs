@@ -100,6 +100,11 @@ public sealed class FeatureReviewJournal
                 throw new InvalidDataException("Review receipt exceeded its byte limit.");
             var receipt = JsonSerializer.Deserialize<FeatureReviewReceipt>(data, Options)
                 ?? throw new InvalidDataException("Review receipt is empty.");
+            // The hash binds the serialized model; reject uncommitted or duplicate
+            // JSON fields which a last-value-wins model reader would otherwise lose.
+            // Append always writes the same canonical UTF-8 representation.
+            if (!data.AsSpan().SequenceEqual(JsonSerializer.SerializeToUtf8Bytes(receipt, Options)))
+                throw new InvalidDataException("Review receipt JSON is not canonical.");
             if (receipt.Schema != Schema || receipt.Project != graph.Project ||
                 receipt.GraphRevision != graph.Revision || receipt.CatalogSha256 != digest ||
                 receipt.Sequence != i + 1 || receipt.PreviousHash != previousHash ||
@@ -163,8 +168,31 @@ public sealed class FeatureReviewJournal
     {
         if (string.IsNullOrWhiteSpace(text) || Encoding.UTF8.GetByteCount(text) > 16_384)
             throw new InvalidDataException("Review instruction must be nonempty and bounded.");
-        return JsonSerializer.Deserialize<FeatureReviewRequest>(text, Options)
+        using var document = JsonDocument.Parse(text);
+        RejectDuplicateProperties(document.RootElement);
+        return document.RootElement.Deserialize<FeatureReviewRequest>(Options)
             ?? throw new InvalidDataException("Review instruction is empty.");
+    }
+
+    // Web JSON property names are matched case-insensitively. Neither an exact
+    // duplicate nor a differently cased alias may override local operator intent.
+    private static void RejectDuplicateProperties(JsonElement element)
+    {
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var property in element.EnumerateObject())
+            {
+                if (!seen.Add(property.Name))
+                    throw new InvalidDataException("Review instruction has duplicate JSON properties.");
+                RejectDuplicateProperties(property.Value);
+            }
+        }
+        else if (element.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in element.EnumerateArray())
+                RejectDuplicateProperties(item);
+        }
     }
 
     private static void ValidateRequest(FeatureReviewRequest request,
