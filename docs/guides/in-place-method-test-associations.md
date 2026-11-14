@@ -74,3 +74,26 @@ optional browser tests.
 The separate [TRX results-only importer](test-journey-trx-results.md) parses actual VSTest runner outcomes without source call traces. Neither that report nor this static projection automatically proves which target implementation method ran. Future work must independently join an exact test-runner case/attempt ID to a declared test method, verify build/source revision, handle parameterized case identity, and produce scoped observed instrumentation before showing execution status on the original SUT node.
 
 Required next steps: runner discovery adapters (xUnit, NUnit, MSTest), safe per-case joining, exact existing-method Inspector badges, authorized isolated test execution, per-test correlated `Activity` spans, replay with trace gaps, S16 permission enforcement and privacy guards. No TestCase node injection into the primary canvas.
+
+
+## Selection isolation in the Web Studio method-test inspector (2026-11-13)
+
+The method-test inspector now owns its asynchronous lookup and is keyed by
+the exact `(graph.project, graph.revision, selected Method SymbolId)` tuple.
+Changing the method unmounts the previous inspector synchronously and renders
+a loading state **before** fetching the next selection. Aborted requests do
+not publish stale results or errors under another method. The separately keyed
+DataJourney inspector retains its own loading lifecycle; keys are distinct
+between sibling inspector components.
+
+The optional Chromium regression in `e2e/datajourney.spec.ts` deliberately
+delays the next `test-links` response and checks that a prior, synthetic
+UI-fixture test name is not shown for the new method. The fixture is **not**
+a real test mapping or runtime claim. Reproduce on a trusted, locally indexed
+cross-project fixture with `bash scripts/ci-datajourney-studio.sh` after the
+normal locked solution build and `npm ci` in `apps/web-studio`.
+
+This corrects a misleading intermediate UI state only. The underlying
+relationship remains `StaticSourceOnly` / `Unobserved`; there is still no
+runner-discovered identity, observed coverage, test execution API, hosted
+authorization, or S31/S33 acceptance.
