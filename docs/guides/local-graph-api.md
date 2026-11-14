@@ -72,9 +72,10 @@ generic Problem response rather than an unhandled HTTP 500 or a misleading
 404. The raw JSON, source path, and inner validation exception are never
 included in the HTTP response.
 
-`GraphSnapshotStore.Load` wraps only persisted content validation/deserialization
-failures in `CorruptGraphSnapshotException`, preserving the trusted inner
-exception. ASP.NET Core handles this exact exception at the local API boundary.
+`GraphSnapshotStore.Load` keeps its original InvalidDataException and
+System.Text.Json.JsonException contracts for CLI/MCP consumers. The ASP.NET
+Core pipeline maps those two exceptions to a generic HTTP 422 only on the
+local `/api/graphs` and `/api/guardian` routes, without exposing inner details.
 Missing revisions still yield 404; intact revisions continue to return 200.
 File-system I/O errors, access denials, and unrelated programming failures
 remain different failures; they are not silently rewritten as bad graph data.

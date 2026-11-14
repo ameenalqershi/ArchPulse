@@ -27,19 +27,17 @@ public sealed class GraphSnapshotStoreTests
     }
 
     [Fact]
-    public void CorruptSnapshotJsonHasDistinctContentErrorWithTrustedInnerCause()
+    public void CorruptSnapshotJsonRetainsOriginalJsonExceptionForNonHttpConsumers()
     {
         using var temp = new TempDirectory();
         var store = new GraphSnapshotStore(temp.Path);
         var file = store.Save(MakeGraph("public class A {}", "rev1"));
         File.WriteAllText(file, "{private-diagnostic-marker");
-        var error = Assert.Throws<CorruptGraphSnapshotException>(() => store.Load("Invoices", "rev1"));
-        Assert.IsType<System.Text.Json.JsonException>(error.InnerException);
-        Assert.DoesNotContain("private-diagnostic-marker", error.Message, StringComparison.Ordinal);
+        Assert.Throws<System.Text.Json.JsonException>(() => store.Load("Invoices", "rev1"));
     }
 
     [Fact]
-    public void MismatchedPersistedIdentityHasDistinctContentErrorButUnknownKeyRemainsMissing()
+    public void MismatchedPersistedIdentityRetainsInvalidDataExceptionAndMissingKeysStayNull()
     {
         using var temp = new TempDirectory();
         var store = new GraphSnapshotStore(temp.Path);
@@ -48,8 +46,7 @@ public sealed class GraphSnapshotStoreTests
         Assert.Contains("\"Project\": \"Invoices\"", payload, StringComparison.Ordinal);
         File.WriteAllText(file, payload.Replace("\"Project\": \"Invoices\"",
             "\"Project\": \"Forged\"", StringComparison.Ordinal));
-        var error = Assert.Throws<CorruptGraphSnapshotException>(() => store.Load("Invoices", "rev1"));
-        Assert.IsType<InvalidDataException>(error.InnerException);
+        Assert.Throws<InvalidDataException>(() => store.Load("Invoices", "rev1"));
         Assert.Null(store.Load("Invoices", "unindexed"));
     }
 
