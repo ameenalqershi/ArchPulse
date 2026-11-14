@@ -130,16 +130,30 @@ public sealed class GraphSnapshotStore
         // Validate the canonical parent hierarchy independently from call/flow edges.
         var parents = snapshot.Nodes.ToDictionary(n => n.SymbolId, n => n.ParentSymbolId,
             StringComparer.Ordinal);
+        // A separate visited set for each starting node makes a deep, valid
+        // hierarchy quadratic. Resolve each parent chain once instead, with
+        // explicit in-progress/completed states and no recursive stack growth.
+        // This scans ownership only; call and feature edges may contain cycles.
+        var resolved = new HashSet<string>(StringComparer.Ordinal);
+        var visiting = new HashSet<string>(StringComparer.Ordinal);
+        var chain = new List<string>();
         foreach (var id in ids)
         {
-            var visited = new HashSet<string>(StringComparer.Ordinal);
+            if (resolved.Contains(id)) continue;
             string? cursor = id;
-            while (cursor is not null)
+            while (cursor is not null && !resolved.Contains(cursor))
             {
-                if (!visited.Add(cursor))
-                    throw new InvalidDataException($"Cycle in canonical ownership hierarchy at {cursor}.");
+                if (!visiting.Add(cursor))
+                    throw new InvalidDataException(
+                        $"Cycle in canonical ownership hierarchy at {cursor}.");
+                chain.Add(cursor);
                 cursor = parents[cursor];
             }
+
+            foreach (string item in chain)
+                resolved.Add(item);
+            visiting.Clear();
+            chain.Clear();
         }
     }
 

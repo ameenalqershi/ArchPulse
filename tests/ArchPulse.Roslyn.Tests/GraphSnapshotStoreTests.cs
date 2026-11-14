@@ -60,6 +60,48 @@ public sealed class GraphSnapshotStoreTests
     }
 
     [Fact]
+    public void ValidatesThirtyThousandDeepOwnershipNodesWithoutRecursiveTraversal()
+    {
+        const int count = 30_000;
+        var evidence = new SourceEvidence("deep-revision", "Demo.cs", 1, 1, EvidenceKind.Static);
+        var nodes = Enumerable.Range(0, count)
+            .Select(index => new GraphNode($"node:{index}", GraphNodeKind.Class,
+                $"Node {index}", index == 0 ? null : $"node:{index - 1}", evidence))
+            .Reverse().ToArray();
+
+        var graph = new GraphSnapshot("Deep", "deep-revision", nodes, [], []);
+        GraphSnapshotStore.Validate(graph);
+        Assert.Equal(count, graph.Nodes.Count);
+    }
+
+    [Fact]
+    public void RejectsDeepCanonicalCycleEvenIfNodesAreInReverseOrder()
+    {
+        const int count = 18_000;
+        var evidence = new SourceEvidence("cycle-revision", "Demo.cs", 1, 1, EvidenceKind.Static);
+        var nodes = Enumerable.Range(0, count).Select(index =>
+            new GraphNode($"node:{index}", GraphNodeKind.Class, $"Node {index}",
+                index == 0 ? $"node:{count - 1}" : $"node:{index - 1}", evidence))
+            .Reverse().ToArray();
+
+        var graph = new GraphSnapshot("Cyclic", "cycle-revision", nodes, [], []);
+        var ex = Assert.Throws<InvalidDataException>(() => GraphSnapshotStore.Validate(graph));
+        Assert.Contains("Cycle in canonical ownership hierarchy", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AcceptsManyIndependentRootsAndSharedAncestors()
+    {
+        var evidence = new SourceEvidence("roots", "Demo.cs", 1, 1, EvidenceKind.Static);
+        var nodes = Enumerable.Range(0, 10_000)
+            .Select(index => new GraphNode($"node:{index}", GraphNodeKind.Class, $"Node {index}",
+                index < 100 ? null : $"node:{index % 100}", evidence))
+            .ToArray();
+
+        GraphSnapshotStore.Validate(new GraphSnapshot("Roots", "roots", nodes, [], []));
+    }
+
+    [Fact]
     public void DiffTracksAddedNodesAcrossRevisions()
     {
         var earlier = MakeGraph("public class A { public void One() {} }", "v1");
@@ -92,8 +134,11 @@ public sealed class GraphSnapshotStoreTests
     public void InvalidEvidenceRevisionIsRejected()
     {
         var graph = MakeGraph("public class A {}", "rev1");
-        var tampered = graph with { Nodes = graph.Nodes.Select(n =>
-            n with { Evidence = n.Evidence with { Revision = "rev2" } }).ToArray() };
+        var tampered = graph with
+        {
+            Nodes = graph.Nodes.Select(n =>
+            n with { Evidence = n.Evidence with { Revision = "rev2" } }).ToArray()
+        };
         Assert.Throws<InvalidDataException>(() => GraphSnapshotStore.Validate(tampered));
     }
 
