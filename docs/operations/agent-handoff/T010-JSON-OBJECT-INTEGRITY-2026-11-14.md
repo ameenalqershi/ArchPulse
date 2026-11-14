@@ -4,7 +4,7 @@
 
 - T010 is In Progress; S02 remains Proposed. This is a narrow, reviewable data-integrity safeguard, not product acceptance.
 - Feature branch: feat/t010-journal-json-integrity-20261114, isolated Linux .NET 10 checkout.
-- Dependency: PR #70, head b00472eb27c02d41b48974ba5d1ab1f779214839 (local checkpoint projection), based on main 344d17e4b56b9e18427b4f8177185751b3321b52.
+- Dependency now merged: PR #70 feature head b00472eb27c02d41b48974ba5d1ab1f779214839 (local checkpoint projection), integrated to main as ce1f051a860c3e892325d083992cbea446aad800. This branch was reconciled with that main tree without changing its tested source.
 - PR #68 addresses a different S25 handoff validator; none of its files were edited. No other agent's checkout, branch or main was modified.
 
 ## Observed failure and completed change
@@ -31,5 +31,5 @@
 
 - Input is trusted local-journal filesystem data. This does not defend against arbitrary local actors able to rewrite all events/digests, symlink/path races, filesystem power loss, untrusted code execution, multi-host concurrency or missing checkpoint authentication.
 - No data migration, HTTP/MCP listener, runtime server, public endpoint or external credentials were changed.
-- Confirm the exact PR #70 head and the new PR state before reapplying or publishing anything; replay the full tests if PR #70 evolves.
-- Request human review and exact-SHA hosted CI. Merge the parent PR #70 first, then reconcile the dependent change; do not auto-merge or mark T010/S02 Verified without their remaining acceptance gates.
+- PR #70 is merged. Confirm latest main and the new PR state before retrying publication, and replay the full suite if source changes.
+- Request human review and exact-SHA hosted CI. The parent PR #70 is merged; do not auto-merge or mark T010/S02 Verified without their remaining acceptance gates.
