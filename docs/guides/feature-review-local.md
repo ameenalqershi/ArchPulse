@@ -107,3 +107,20 @@ cross-revision migration and conflict resolution, secure key storage, durable
 off-host checkpoints, independent tamper-evident seals, multi-agent permissions
 and maintainer approval are **not implemented**. A successful local test or
 receipt is not formal verification of T026, S05 or business behavior.
+
+## Fail-closed JSON receipt representation — T026/S05 bounded hardening (2026-11-15)
+
+Review receipts are now accepted on read only if their full stored UTF-8 JSON bytes
+match the exact representation produced by the journal's versioned serializer.
+This is intentionally stricter than rehashing a deserialized record: unknown
+fields, duplicate keys, differently-cased aliases and whitespace/field-order
+rewrites cannot be silently discarded and represented as the same reviewed
+assertion. Existing receipts emitted by this journal are already serialized
+in that canonical format. Operator request JSON remains formatting-flexible,
+but repeated property names at any depth (including case aliases under the
+web serializer's case-insensitive property matching) are rejected before
+reading the declared action. This rejects ambiguous input; it does **not**
+authenticate a claimed human, protect from administrators rewriting entire
+histories, or certify business features. Backup older journals before changing
+serializer options or migrating schemas: canonical receipt bytes are part of
+the local v1 storage contract.

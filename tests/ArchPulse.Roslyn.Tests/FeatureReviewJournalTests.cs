@@ -170,8 +170,11 @@ public sealed class FeatureReviewJournalTests
         var catalog = Catalog(g);
         var journal = new FeatureReviewJournal(temp.Path);
         var review = journal.Append(g, catalog, Request(FeatureReviewAction.ApproveCandidate));
-        var revised = catalog with { Features = [catalog.Features[0] with
-            { Description = "Different proposed intent" }] };
+        var revised = catalog with
+        {
+            Features = [catalog.Features[0] with
+            { Description = "Different proposed intent" }]
+        };
         var alternate = journal.Read(g, revised);
         Assert.Equal(0, alternate.Sequence);
         Assert.NotEqual(review.CatalogSha256, alternate.CatalogSha256);
@@ -196,8 +199,45 @@ public sealed class FeatureReviewJournalTests
             """{"actor":"A","reason":"B","expectedHead":"GENESIS","featureId":"create-invoice","symbolId":"method:Submit"}""");
         Assert.Throws<InvalidDataException>(() =>
             new FeatureReviewJournal(temp.Path).Append(g, Catalog(g),
-                partial with { ExpectedHead = new FeatureReviewJournal(temp.Path)
-                    .Read(g, Catalog(g)).Head }));
+                partial with
+                {
+                    ExpectedHead = new FeatureReviewJournal(temp.Path)
+                    .Read(g, Catalog(g)).Head
+                }));
+    }
+
+    [Theory]
+    [InlineData("\"action\":\"RejectCandidate\",")]
+    [InlineData("\"ACTION\":\"RejectCandidate\",")]
+    [InlineData("\"unexpectedUnhashedClaim\":\"trusted\",")]
+    public void StoredReviewReceiptRejectsUncommittedJsonFields(string uncommitted)
+    {
+        using var temp = new Temp();
+        var g = Graph();
+        var journal = new FeatureReviewJournal(temp.Path);
+        journal.Append(g, Catalog(g), Request(FeatureReviewAction.ApproveCandidate));
+        var file = Assert.Single(Directory.GetFiles(temp.Path, "*.review-receipt.json",
+            SearchOption.AllDirectories));
+        var original = File.ReadAllText(file);
+        // Adding fields before the real properties leaves the deserialized
+        // receipt and its computed model hash unchanged under the old parser.
+        File.WriteAllText(file, "{" + uncommitted + original[1..]);
+
+        Assert.Throws<InvalidDataException>(() => journal.Read(g, Catalog(g)));
+    }
+
+    [Theory]
+    [InlineData("\"action\":\"RejectCandidate\",")]
+    [InlineData("\"ACTION\":\"RejectCandidate\",")]
+    public void ReviewRequestParsingRejectsConflictingDuplicateKeys(string inserted)
+    {
+        var input = """
+          {"action":"ApproveCandidate","actorKind":"LocalHumanDeclared",
+           "actor":"Fixture Reviewer","reason":"Source review only",
+           "expectedHead":"GENESIS","featureId":"create-invoice","symbolId":"method:Submit"}
+          """;
+        var tampered = "{" + inserted + input[1..];
+        Assert.Throws<InvalidDataException>(() => FeatureReviewJournal.ParseRequest(tampered));
     }
 
     private sealed class Temp : IDisposable
