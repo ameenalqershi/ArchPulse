@@ -107,3 +107,16 @@ workspaces and apply permission checks before exposing across tenants.
 The sidecar is immutable for a given project/revision, but this is not a
 signed security attestation; local filesystem administrators can replace it.
 Do not use a static candidate report alone to make security compliance claims.
+
+## Mixed-argument sink classification — T027/S06 bounded correction (2026-11-15)
+
+When a declared sink has several arguments, a locally proven raw candidate
+is no longer hidden merely because another argument is an unrelated unknown
+local/parameter read. The result remains StaticPossibleRisk, with the raw
+argument's exact static source identity. A declared sanitizer on a different
+argument does not outrank this raw witness. Unknown inputs without any raw
+witness remain Unknown, and unmodeled calls or unsupported prior branches
+also remain Unknown because side effects can invalidate a local reading.
+This is a possible static dataflow finding, not proof of a data leak,
+runtime observation, a verified sanitizer or full C# control-flow analysis.
+No literal parameter values are captured.

@@ -173,9 +173,69 @@ public sealed class LocalDataJourneyTests
         Assert.Throws<InvalidDataException>(() => LocalDataJourneyContract.Validate(graph,
             report with { RuntimeStatus = "Observed" }));
         var fake = report.Findings[0] with
-            { Location = report.Findings[0].Location with { Kind = EvidenceKind.Verified } };
+        {
+            Location = report.Findings[0].Location with { Kind = EvidenceKind.Verified }
+        };
         Assert.Throws<InvalidDataException>(() => LocalDataJourneyContract.Validate(graph,
             report with { Findings = [fake] }));
+    }
+
+    [Fact]
+    public void KnownRawSinkInputCannotBeHiddenByIndependentUnknownArgument()
+    {
+        var additional = """
+        [SensitiveSink] public static void SinkPair(string left, string right) {}
+        public static void RiskFirst([SensitiveSource] string token, string unrelated) {
+            SinkPair(token, unrelated);
+        }
+        public static void RiskLast([SensitiveSource] string token, string unrelated) {
+            SinkPair(unrelated, token);
+        }
+        public static void RiskSourceCall(string unrelated) {
+            SinkPair(unrelated, Source());
+        }
+        public static void RiskSanitizedOther(
+            [SensitiveSource] string raw, [SensitiveSource] string other) {
+            SinkPair(Sanitize(other), raw);
+        }
+        """;
+        var corpus = Fixture.Replace("public static void Decoy(",
+            additional + "public static void Decoy(", StringComparison.Ordinal);
+        var (_, report) = Analyze(source: corpus);
+
+        foreach (var name in new[] { "RiskFirst", "RiskLast", "RiskSourceCall",
+                                      "RiskSanitizedOther" })
+        {
+            var finding = Find(report, name);
+            Assert.Equal(LocalFlowDestination.DeclaredSink, finding.Destination);
+            Assert.Equal(LocalFlowOutcome.StaticPossibleRisk, finding.Outcome);
+            Assert.False(string.IsNullOrEmpty(finding.SourceSymbolId));
+        }
+        Assert.EndsWith("::parameter:raw",
+            Find(report, "RiskSanitizedOther").SourceSymbolId, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void UnknownInputAndUnmodeledEffectsDoNotManufactureProvenRiskOrSafety()
+    {
+        var additional = """
+        [SensitiveSink] public static void SinkPair(string left, string right) {}
+        public static void UnknownPair(string unrelated) {
+            SinkPair("public", unrelated);
+        }
+        public static void UnknownEffect([SensitiveSource] string token) {
+            SinkPair(Opaque(token), token);
+        }
+        public static void UnknownBranchPair(
+            [SensitiveSource] string token, string unrelated, bool flag) {
+            if (flag) token = "public"; SinkPair(token, unrelated);
+        }
+        """;
+        var corpus = Fixture.Replace("public static void Decoy(",
+            additional + "public static void Decoy(", StringComparison.Ordinal);
+        var (_, report) = Analyze(source: corpus);
+        foreach (var name in new[] { "UnknownPair", "UnknownEffect", "UnknownBranchPair" })
+            Assert.Equal(LocalFlowOutcome.Unknown, Find(report, name).Outcome);
     }
 
     private sealed class Temp : IDisposable
