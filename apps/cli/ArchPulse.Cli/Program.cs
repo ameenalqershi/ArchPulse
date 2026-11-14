@@ -197,10 +197,15 @@ try
         return 0;
     }
 
-    if (args.Length == 4 && args[0] == "graph-journal-show" && args[2] == "--journal")
+    if (args.Length is 4 or 6 && args[0] == "graph-journal-show" &&
+        args[2] == "--journal" && (args.Length == 4 || args[4] == "--revision"))
     {
-        var graph = new GraphRevisionJournal(args[3]).Replay(args[1])
-            ?? throw new FileNotFoundException("Graph journal has no committed revisions.");
+        var journal = new GraphRevisionJournal(args[3]);
+        var graph = args.Length == 6
+            ? journal.ReplayAt(args[1], args[5])
+            : journal.Replay(args[1]);
+        if (graph is null)
+            throw new FileNotFoundException("Requested committed graph journal revision is missing.");
         Console.WriteLine(JsonSerializer.Serialize(graph, jsonOptions));
         return 0;
     }
@@ -302,7 +307,7 @@ try
     Console.Error.WriteLine("  feature-show <project> --revision <sha> --store <directory> [--id <feature-slug>]");
     Console.Error.WriteLine("  graph-show <project> --revision <git-sha> --store <directory>");
     Console.Error.WriteLine("  graph-journal-append <project> --revision <sha> --store <snapshot-dir> --journal <journal-dir> [--expected <current-head>]");
-    Console.Error.WriteLine("  graph-journal-show <project> --journal <journal-dir>");
+    Console.Error.WriteLine("  graph-journal-show <project> --journal <journal-dir> [--revision <committed-revision>]");
     Console.Error.WriteLine("  feature-review-show <project> --revision <sha> --store <directory>");
     Console.Error.WriteLine("  feature-review-record <project> --revision <sha> --store <directory> --request <json> --confirm-local-human-review");
     Console.Error.WriteLine("  feature-impact <project> --from <sha> --to <sha> --store <directory>");

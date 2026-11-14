@@ -25,6 +25,9 @@ dotnet run --project apps/cli/ArchPulse.Cli -c Release --no-build -- \
   --journal /tmp/ap-event-journal --expected demo-r1
 dotnet run --project apps/cli/ArchPulse.Cli -c Release --no-build -- \
   graph-journal-show Billing --journal /tmp/ap-event-journal
+# View the prior exact revision without rebuilding or changing the HEAD:
+dotnet run --project apps/cli/ArchPulse.Cli -c Release --no-build -- \
+  graph-journal-show Billing --journal /tmp/ap-event-journal --revision demo-r1
 ```
 
 The second example requires that `demo-r2` was already indexed; a missing
@@ -46,12 +49,18 @@ trusted repositories, never arbitrary user-submitted MSBuild projects.
 - A persistent writer-lock file and `FileShare.None` reject competing writers;
   a flushed temporary file is renamed into place atomically on the same
   local filesystem. Abandoned `.tmp` files are ignored, not treated as events.
-- Corrupt, missing or reordered committed events fail closed. A loss of an
-  **entire final event** cannot be distinguished from a never committed event
+- `ReplayAt(project, revision)` validates and replays **only the prefix** through
+  that exact committed revision; it returns null for unknown revisions. A
+  corrupted newer event does not block recovering a previously valid revision,
+  but this does **not** certify the entire later journal. `Replay(project)`
+  continues validating all committed events and fails on corrupted newer data.
+- Corrupt, missing or reordered committed events in the requested prefix
+  fail closed. A loss of an **entire final event** cannot be distinguished
+  from a never committed event
   without an external durable checkpoint; this is a known limitation.
 - Identity and event hashes provide **accidental-tamper detection**, not
   authentication against a local actor able to rewrite every event and digest.
-- No compaction, checkpoint rotation, historical query-by-revision, concurrent
+- No compaction, checkpoint rotation, bounded historical query cost,
   reader isolation guarantee beyond immutable renamed events, directory fsync,
   network filesystem guarantee, runtime observation, multi-host lease, or
   performance proof at millions of edges yet.
