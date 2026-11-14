@@ -99,6 +99,8 @@ public static partial class RepositoryChecker
             if (data.Any(r => r.GetValueOrDefault("Implementation status", "Planned") is not ("Planned" or "Unknown")))
                 errors.Add($"{name}: do not fabricate verified statuses");
         }
+        errors.AddRange(ProjectReferenceChecker.Validate(root));
+        errors.AddRange(SolutionMembershipChecker.Validate(root));
         errors.AddRange(HandoffChecker.Validate(root));
         return errors;
     }
