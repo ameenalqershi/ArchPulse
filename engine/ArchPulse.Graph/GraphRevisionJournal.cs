@@ -14,6 +14,7 @@ namespace ArchPulse.Graph;
 public sealed class GraphRevisionJournal
 {
     private const int SchemaVersion = 1;
+    private const string CheckpointSchema = "archpulse.graph-journal-checkpoint/v1";
     private readonly string _root;
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -29,6 +30,77 @@ public sealed class GraphRevisionJournal
 
     /// <summary>Return the reconstructed exact graph revision, or null if no events exist.</summary>
     public GraphSnapshot? Replay(string project) => ReadEvents(project).Snapshot;
+
+    /// <summary>
+    /// Create an immutable checkpoint from a fully validated journal head.
+    /// A checkpoint never deletes/replaces journal events. A signed or
+    /// externally trusted checkpoint is NOT provided by this local store.
+    /// </summary>
+    public GraphCheckpointReceipt CreateCheckpoint(string project)
+    {
+        string directory = ProjectPath(project);
+        if (!Directory.Exists(directory))
+            throw new FileNotFoundException("Graph journal has no committed revisions.");
+
+        using var writerLock = new FileStream(Path.Combine(directory, ".writer.lock"),
+            FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+        var state = ReadEvents(project);
+        if (state.Snapshot is null || state.Digest is null)
+            throw new FileNotFoundException("Graph journal has no committed revisions.");
+
+        byte[] snapshotBytes = JsonSerializer.SerializeToUtf8Bytes(state.Snapshot, JsonOptions);
+        string snapshotDigest = Convert.ToHexStringLower(SHA256.HashData(snapshotBytes));
+        var checkpoint = new GraphJournalCheckpoint(CheckpointSchema, project,
+            state.Snapshot.Revision, state.Sequence, state.Digest,
+            snapshotDigest, state.Snapshot);
+        byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(checkpoint, JsonOptions);
+        string path = CheckpointPath(directory, state.Sequence);
+        if (File.Exists(path))
+        {
+            VerifyExistingCheckpoint(path, bytes);
+            return new GraphCheckpointReceipt(project, state.Snapshot.Revision,
+                state.Sequence, state.Digest, snapshotDigest, path);
+        }
+        string temp = Path.Combine(directory, $".archpulse-{Guid.NewGuid():N}.tmp");
+        try
+        {
+            using (var stream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                stream.Write(bytes);
+                stream.Flush(flushToDisk: true);
+            }
+            try
+            {
+                File.Move(temp, path, overwrite: false);
+            }
+            catch (IOException) when (File.Exists(path))
+            {
+                VerifyExistingCheckpoint(path, bytes);
+            }
+        }
+        finally
+        {
+            if (File.Exists(temp)) File.Delete(temp);
+        }
+        return new GraphCheckpointReceipt(project, state.Snapshot.Revision,
+            state.Sequence, state.Digest, snapshotDigest, path);
+    }
+
+    /// <summary>
+    /// Trust a local immutable, content-checked checkpoint and replay only its
+    /// trailing journal events. Does NOT audit events before the checkpoint;
+    /// use Replay(project) for whole-history verification.
+    /// </summary>
+    public GraphSnapshot? ReplayFromLatestCheckpoint(string project)
+    {
+        string directory = ProjectPath(project);
+        if (!Directory.Exists(directory)) return null;
+        string? latest = Directory.GetFiles(directory, "*.checkpoint.json")
+            .Order(StringComparer.Ordinal).LastOrDefault();
+        if (latest is null) return Replay(project);
+        var checkpoint = LoadCheckpoint(project, latest);
+        return ReadEvents(project, checkpoint: checkpoint).Snapshot;
+    }
 
     /// <summary>
     /// Reconstruct an earlier revision from the validated event prefix. Events AFTER
@@ -109,7 +181,8 @@ public sealed class GraphRevisionJournal
     }
 
     private (GraphSnapshot? Snapshot, long Sequence, string? Digest, string? LastPath)
-        ReadEvents(string project, string? stopAtRevision = null)
+        ReadEvents(string project, string? stopAtRevision = null,
+            GraphJournalCheckpoint? checkpoint = null)
     {
         if (string.IsNullOrWhiteSpace(project))
             throw new ArgumentException("Project is required.", nameof(project));
@@ -117,15 +190,20 @@ public sealed class GraphRevisionJournal
         if (!Directory.Exists(directory)) return (null, 0, null, null);
         var paths = Directory.GetFiles(directory, "*.event.json")
             .OrderBy(name => name, StringComparer.Ordinal).ToArray();
-        GraphSnapshot? current = null;
-        string? digest = null;
-        string? lastPath = null;
-        long sequence = 0;
+        GraphSnapshot? current = checkpoint?.Snapshot;
+        string? digest = checkpoint?.EventDigest;
+        long sequence = checkpoint?.Sequence ?? 0;
+        string? lastPath = checkpoint is null ? null : EventPath(directory, checkpoint.Sequence);
+        long ordinal = 0;
         foreach (string path in paths)
         {
-            sequence++;
-            if (!string.Equals(path, EventPath(directory, sequence), StringComparison.Ordinal))
+            ordinal++;
+            if (!string.Equals(path, EventPath(directory, ordinal), StringComparison.Ordinal))
                 throw new InvalidDataException("Graph journal sequence has a gap or unexpected filename.");
+            // Check filenames through the prefix, but skip historical payload I/O
+            // after accepting the independently checked local checkpoint.
+            if (checkpoint is not null && ordinal <= checkpoint.Sequence) continue;
+            sequence = ordinal;
             GraphJournalEnvelope envelope;
             try
             {
@@ -159,6 +237,8 @@ public sealed class GraphRevisionJournal
                 string.Equals(current.Revision, stopAtRevision, StringComparison.Ordinal))
                 return (current, sequence, digest, lastPath);
         }
+        if (checkpoint is not null && ordinal < checkpoint.Sequence)
+            throw new InvalidDataException("Checkpoint refers to missing committed journal events.");
         // No matching revision in the validated prefix: never substitute the head.
         return (stopAtRevision is null ? current : null, sequence, digest, lastPath);
     }
@@ -197,6 +277,74 @@ public sealed class GraphRevisionJournal
             evt.Diagnostics.ToArray());
     }
 
+    private GraphJournalCheckpoint LoadCheckpoint(string project, string path)
+    {
+        GraphJournalCheckpoint checkpoint;
+        try
+        {
+            checkpoint = JsonSerializer.Deserialize<GraphJournalCheckpoint>(
+                File.ReadAllBytes(path), JsonOptions)
+                ?? throw new InvalidDataException("Empty graph journal checkpoint.");
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidDataException("Malformed graph journal checkpoint.", ex);
+        }
+
+        string directory = ProjectPath(project);
+        if (checkpoint.Schema != CheckpointSchema ||
+            checkpoint.Sequence <= 0 ||
+            !string.Equals(path, CheckpointPath(directory, checkpoint.Sequence), StringComparison.Ordinal) ||
+            !string.Equals(project, checkpoint.Project, StringComparison.Ordinal) ||
+            string.IsNullOrWhiteSpace(checkpoint.Revision) ||
+            string.IsNullOrWhiteSpace(checkpoint.EventDigest) ||
+            checkpoint.Snapshot is null ||
+            checkpoint.Snapshot.Project != project ||
+            checkpoint.Snapshot.Revision != checkpoint.Revision)
+            throw new InvalidDataException("Graph checkpoint has an invalid identity or schema.");
+
+        string actualSnapshotDigest = Convert.ToHexStringLower(SHA256.HashData(
+            JsonSerializer.SerializeToUtf8Bytes(checkpoint.Snapshot, JsonOptions)));
+        if (!string.Equals(checkpoint.SnapshotDigest, actualSnapshotDigest,
+                StringComparison.Ordinal))
+            throw new InvalidDataException("Graph checkpoint snapshot digest mismatch.");
+        GraphSnapshotStore.Validate(checkpoint.Snapshot);
+
+        // Anchor the checkpoint to the exact finalized event at its sequence.
+        // Only this anchor and the tail are read, not the historical payloads.
+        string anchorPath = EventPath(directory, checkpoint.Sequence);
+        GraphJournalEnvelope anchor;
+        try
+        {
+            anchor = JsonSerializer.Deserialize<GraphJournalEnvelope>(
+                File.ReadAllBytes(anchorPath), JsonOptions)
+                ?? throw new InvalidDataException("Empty graph checkpoint anchor event.");
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidDataException("Malformed graph checkpoint anchor event.", ex);
+        }
+        var evt = anchor.Event ??
+            throw new InvalidDataException("Graph checkpoint anchor event has no payload.");
+        if (evt.Schema != SchemaVersion || evt.Sequence != checkpoint.Sequence ||
+            evt.Project != project || evt.Revision != checkpoint.Revision ||
+            anchor.Digest != checkpoint.EventDigest ||
+            !string.Equals(Digest(evt), checkpoint.EventDigest, StringComparison.Ordinal))
+            throw new InvalidDataException("Graph checkpoint does not match its finalized event.");
+        return checkpoint;
+    }
+
+    private static void VerifyExistingCheckpoint(string path, byte[] expected)
+    {
+        if (!File.ReadAllBytes(path).AsSpan().SequenceEqual(expected))
+            throw new InvalidDataException(
+                "Committed graph checkpoint is immutable and its bytes differ.");
+    }
+
+    private static string CheckpointPath(string directory, long sequence) =>
+        Path.Combine(directory, sequence.ToString("D16",
+            System.Globalization.CultureInfo.InvariantCulture) + ".checkpoint.json");
+
     private string ProjectPath(string project)
     {
         if (string.IsNullOrWhiteSpace(project))
@@ -222,6 +370,10 @@ public sealed class GraphRevisionJournal
         Path.Combine(directory, sequence.ToString("D16", System.Globalization.CultureInfo.InvariantCulture) +
             ".event.json");
 
+    private sealed record GraphJournalCheckpoint(
+        string? Schema, string? Project, string? Revision, long Sequence,
+        string? EventDigest, string? SnapshotDigest, GraphSnapshot? Snapshot);
+
     private sealed record GraphJournalEnvelope(GraphJournalEvent? Event, string? Digest);
 
     private sealed record GraphJournalEvent(
@@ -236,3 +388,6 @@ public sealed class GraphRevisionJournal
 
 public sealed record GraphJournalReceipt(string Project, string Revision,
     long Sequence, string Digest, string EventPath);
+
+public sealed record GraphCheckpointReceipt(string Project, string Revision,
+    long Sequence, string EventDigest, string SnapshotDigest, string CheckpointPath);
