@@ -18,6 +18,19 @@ flowchart LR
   Worker --> Traces
 ```
 
+### Text-only alternative for the proposed architecture diagram
+
+The repository and solution flow into the proposed Roslyn indexer, which
+generates a versioned evidence graph. Architecture decisions and policies and
+OpenTelemetry traces are additional **intended** graph inputs. The proposed
+graph serves Guardian, FeatureAtlas/DataJourney, and Web Studio. Web Studio
+connects bidirectionally to the Agent Gateway/MCP Apps, which connects to the
+Continuity ledger; Web Studio also initiates Futures Engine experiments in an
+isolated worker. The worker supplies proposed OpenTelemetry observations to
+the graph. The arrows specify **design dependencies**, not deployed or
+verified network integrations; a non-visual reader should not infer that a
+source analyzer or worker already implements this full path.
+
 ## Evidence classification
 
 | Category | Meaning | Source |
@@ -29,7 +42,7 @@ flowchart LR
 | Verified | claim with recorded source/revision and independent validation | reproducible receipts |
 | Unknown | insufficient evidence, interruption or uncertain outcome | explicit unknown record |
 
-**Current implementation:** only `ArchPulse.Core.EvidenceReceipt` validates basic evidence categories and presence of source/revision for a purported verified claim. It is **not** a complete evidence validator, graph engine or visualization runtime.
+**Current implementation (partial):** ArchPulse.Core.EvidenceReceipt provides baseline receipt checks; ArchPulse.Graph and ArchPulse.Roslyn can index selected C# structures and persist revision-scoped static graph evidence. The local API and Web Studio can inspect bounded, source-backed slices, including static test links and partial DataJourney. None is an end-to-end architecture evidence authority, authenticated remote runtime or production-grade source of truth. See the [current implementation overview](../../README.md) and its exact-revision CI evidence.
 
 ## Bounded contexts
 
