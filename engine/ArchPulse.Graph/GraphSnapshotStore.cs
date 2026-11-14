@@ -68,13 +68,24 @@ public sealed class GraphSnapshotStore
     {
         string path = GetPath(project, revision);
         if (!File.Exists(path)) return null;
-        using var stream = File.OpenRead(path);
-        var snapshot = JsonSerializer.Deserialize<GraphSnapshot>(stream, JsonOptions)
-            ?? throw new InvalidDataException("Graph snapshot is empty.");
-        Validate(snapshot);
-        if (snapshot.Project != project || snapshot.Revision != revision)
-            throw new InvalidDataException("Stored snapshot has a mismatched identity or revision.");
-        return snapshot;
+        // A persisted document can become invalid independently of the HTTP
+        // client (manual edits, partial disk corruption, incompatible data).
+        // Tag only *content* failures; permissions and I/O failures must retain
+        // their distinct error semantics and must not be mislabeled HTTP 422.
+        try
+        {
+            using var stream = File.OpenRead(path);
+            var snapshot = JsonSerializer.Deserialize<GraphSnapshot>(stream, JsonOptions)
+                ?? throw new InvalidDataException("Graph snapshot is empty.");
+            Validate(snapshot);
+            if (snapshot.Project != project || snapshot.Revision != revision)
+                throw new InvalidDataException("Stored snapshot has a mismatched identity or revision.");
+            return snapshot;
+        }
+        catch (Exception ex) when (ex is InvalidDataException or JsonException)
+        {
+            throw new CorruptGraphSnapshotException(ex);
+        }
     }
 
     public static GraphDifference Compare(GraphSnapshot previous, GraphSnapshot current)
@@ -179,3 +190,11 @@ public sealed record GraphDifference(
     IReadOnlyList<string> RemovedNodes,
     IReadOnlyList<string> AddedEdges,
     IReadOnlyList<string> RemovedEdges);
+
+/// <summary>
+/// A persisted graph document is unreadable or invalid, not a missing revision.
+/// The inner exception is retained for trusted diagnostics; HTTP must not expose it.
+/// File I/O/permission failures are deliberately excluded.
+/// </summary>
+public sealed class CorruptGraphSnapshotException(Exception innerException)
+    : Exception("Stored graph snapshot failed content validation.", innerException);

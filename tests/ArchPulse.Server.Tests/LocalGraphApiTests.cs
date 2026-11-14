@@ -67,6 +67,51 @@ public sealed class LocalGraphApiTests
         Assert.Single(diff.GetProperty("addedNodes").EnumerateArray());
     }
 
+    [Theory]
+    [InlineData("invalid-json")]
+    [InlineData("identity")]
+    [InlineData("invalid-source")]
+    [InlineData("orphan")]
+    public async Task CorruptPersistedGraphReturnsSanitized422ButOtherRevisionRemainsAvailable(
+        string corruption)
+    {
+        using var fixture = new ApiFixture();
+        var stored = File.ReadAllText(fixture.FirstGraphPath);
+        string corrupted = corruption switch
+        {
+            "invalid-json" => "{private-source-marker",
+            "identity" => stored.Replace("\"Project\": \"Billing\"",
+                "\"Project\": \"private-source-marker\"", StringComparison.Ordinal),
+            "invalid-source" => stored.Replace("\"Line\": 12", "\"Line\": -1",
+                StringComparison.Ordinal),
+            "orphan" => stored.Replace("\"ToSymbolId\": \"Billing.Contracts::M:Apply\"",
+                "\"ToSymbolId\": \"private-source-marker\"", StringComparison.Ordinal),
+            _ => throw new ArgumentOutOfRangeException(nameof(corruption))
+        };
+        Assert.NotEqual(stored, corrupted);
+        File.WriteAllText(fixture.FirstGraphPath, corrupted);
+
+        using var broken = await fixture.Client.GetAsync("/api/graphs/Billing/v1");
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, broken.StatusCode);
+        var responseText = await broken.Content.ReadAsStringAsync();
+        Assert.DoesNotContain("private-source-marker", responseText, StringComparison.Ordinal);
+        Assert.DoesNotContain(fixture.FirstGraphPath, responseText, StringComparison.Ordinal);
+        Assert.Contains("Stored graph snapshot cannot be validated", responseText,
+            StringComparison.Ordinal);
+
+        using var diff = await fixture.Client.GetAsync("/api/graphs/Billing/diff?from=v1&to=v2");
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, diff.StatusCode);
+        using var neighbors = await fixture.Client.GetAsync(
+            "/api/graphs/Billing/v1/neighbors?symbolId=Billing.Service%3A%3AM%3ACreateInvoice");
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, neighbors.StatusCode);
+        using var unknown = await fixture.Client.GetAsync("/api/graphs/Billing/unknown");
+        Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
+        using var valid = await fixture.Client.GetAsync("/api/graphs/Billing/v2");
+        Assert.Equal(HttpStatusCode.OK, valid.StatusCode);
+        using var health = await fixture.Client.GetAsync("/health");
+        Assert.Equal(HttpStatusCode.OK, health.StatusCode);
+    }
+
     [Fact]
     public async Task GuardianResponseIncludesWitnessFromPersistedGraph()
     {
@@ -96,13 +141,14 @@ public sealed class LocalGraphApiTests
         private readonly string _directory = Path.Combine(Path.GetTempPath(), "archpulse-server-tests-" + Guid.NewGuid().ToString("N"));
         private readonly WebApplicationFactory<Program> _factory;
         public HttpClient Client { get; }
+        public string FirstGraphPath { get; }
 
         public ApiFixture()
         {
             Directory.CreateDirectory(_directory);
             var store = new GraphSnapshotStore(_directory);
             var first = Create("v1");
-            store.Save(first);
+            FirstGraphPath = store.Save(first);
             var second = Create("v2") with
             {
                 Nodes = Create("v2").Nodes.Concat(

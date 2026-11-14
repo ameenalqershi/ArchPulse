@@ -27,6 +27,33 @@ public sealed class GraphSnapshotStoreTests
     }
 
     [Fact]
+    public void CorruptSnapshotJsonHasDistinctContentErrorWithTrustedInnerCause()
+    {
+        using var temp = new TempDirectory();
+        var store = new GraphSnapshotStore(temp.Path);
+        var file = store.Save(MakeGraph("public class A {}", "rev1"));
+        File.WriteAllText(file, "{private-diagnostic-marker");
+        var error = Assert.Throws<CorruptGraphSnapshotException>(() => store.Load("Invoices", "rev1"));
+        Assert.IsType<System.Text.Json.JsonException>(error.InnerException);
+        Assert.DoesNotContain("private-diagnostic-marker", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MismatchedPersistedIdentityHasDistinctContentErrorButUnknownKeyRemainsMissing()
+    {
+        using var temp = new TempDirectory();
+        var store = new GraphSnapshotStore(temp.Path);
+        var file = store.Save(MakeGraph("public class A {}", "rev1"));
+        var payload = File.ReadAllText(file);
+        Assert.Contains("\"Project\": \"Invoices\"", payload, StringComparison.Ordinal);
+        File.WriteAllText(file, payload.Replace("\"Project\": \"Invoices\"",
+            "\"Project\": \"Forged\"", StringComparison.Ordinal));
+        var error = Assert.Throws<CorruptGraphSnapshotException>(() => store.Load("Invoices", "rev1"));
+        Assert.IsType<InvalidDataException>(error.InnerException);
+        Assert.Null(store.Load("Invoices", "unindexed"));
+    }
+
+    [Fact]
     public void RejectsChangingImmutableSnapshotInSameRevision()
     {
         using var temp = new TempDirectory();
@@ -92,8 +119,11 @@ public sealed class GraphSnapshotStoreTests
     public void InvalidEvidenceRevisionIsRejected()
     {
         var graph = MakeGraph("public class A {}", "rev1");
-        var tampered = graph with { Nodes = graph.Nodes.Select(n =>
-            n with { Evidence = n.Evidence with { Revision = "rev2" } }).ToArray() };
+        var tampered = graph with
+        {
+            Nodes = graph.Nodes.Select(n =>
+            n with { Evidence = n.Evidence with { Revision = "rev2" } }).ToArray()
+        };
         Assert.Throws<InvalidDataException>(() => GraphSnapshotStore.Validate(tampered));
     }
 

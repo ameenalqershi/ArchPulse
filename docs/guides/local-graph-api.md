@@ -62,3 +62,29 @@ beyond the local testing purpose.
 - Future Studio/MCP integration must authenticate caller and symbol
   selection, enforce workspace boundaries, and avoid treating
   'Static' evidence as observed runtime behavior.
+
+## Fail-closed locally stored graph corruption — T012/S02 partial (2026-11-14)
+
+A stored GraphSnapshot might have malformed JSON, a mismatched project/revision,
+or invalid graph identity, parent relationship or provenance. On local read
+routes, these cases now produce **HTTP 422 Unprocessable Entity** with a
+generic Problem response rather than an unhandled HTTP 500 or a misleading
+404. The raw JSON, source path, and inner validation exception are never
+included in the HTTP response.
+
+`GraphSnapshotStore.Load` wraps only persisted content validation/deserialization
+failures in `CorruptGraphSnapshotException`, preserving the trusted inner
+exception. ASP.NET Core handles this exact exception at the local API boundary.
+Missing revisions still yield 404; intact revisions continue to return 200.
+File-system I/O errors, access denials, and unrelated programming failures
+remain different failures; they are not silently rewritten as bad graph data.
+Read-only routes including graph, neighbors and revision diff share this
+failure boundary; graph mutation or automatic repair is NOT introduced.
+
+Regression tests deliberately tamper an isolated saved snapshot with invalid
+JSON, forged project identity, invalid evidence source line and orphan edges.
+Tests check response status and redaction, independent unaffected revision
+readability, health status and missing-revision semantics. Tests are limited
+to this in-memory server and fixtures; no deployment hardening, source attestation,
+cryptographic content hashes, persisted index, filesystem safety audit, or
+production S02/T012 verification is implied.
