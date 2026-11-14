@@ -340,6 +340,36 @@ app.MapGet("/api/graphs/{project}/{revision}/neighbors",
         catch (KeyNotFoundException) { return Results.NotFound(); }
     });
 
+// T120/S27 partial: exact-revision, source-backed boundary references.
+// This endpoint cannot authorize an external scope and must never imply
+// that access to that scope was granted.
+app.MapGet("/api/graphs/{project}/{revision}/cross-scope-portals",
+    (GraphSnapshotStore store, string project, string revision,
+     string scopeSymbolId, int? pageSize, string? afterEdgeId, int? maxScanEdges) =>
+    {
+        if (string.IsNullOrWhiteSpace(scopeSymbolId) || scopeSymbolId.Length > 2048 ||
+            (pageSize.HasValue && pageSize.Value is < 1 or > CrossScopePortalQuery.MaxPageSize) ||
+            (afterEdgeId is not null &&
+                (string.IsNullOrWhiteSpace(afterEdgeId) || afterEdgeId.Length > 2048)) ||
+            (maxScanEdges.HasValue &&
+                maxScanEdges.Value is < 1 or > CrossScopePortalQuery.MaxScanBudget))
+            return Results.BadRequest();
+        var graph = store.Load(project, revision);
+        if (graph is null) return Results.NotFound();
+        try
+        {
+            return Results.Ok(CrossScopePortalQuery.GetPage(graph, scopeSymbolId,
+                pageSize ?? 50, afterEdgeId, maxScanEdges ?? 100_000));
+        }
+        catch (KeyNotFoundException) { return Results.NotFound(); }
+        catch (ArgumentException) { return Results.BadRequest(); }
+        catch (InvalidOperationException)
+        {
+            return Results.Problem("Cross-scope graph query exceeds local scan budget.",
+                statusCode: 413);
+        }
+    });
+
 // T119/S27 partial, local read-only canonical ownership facts, not
 // permission-bearing ViewScope or an authorization decision.
 app.MapGet("/api/graphs/{project}/{revision}/scope-topology",
