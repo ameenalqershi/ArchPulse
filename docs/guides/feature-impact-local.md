@@ -102,3 +102,28 @@ Reverse-index **construction** is now bounded by at most two O(edges) scans, exc
 Regressions cover mixed source revisions with correct source-specific witness evidence and 120 newly added nodes plus 120 new `Calls` edges. The 240 events produce 121 distinct candidate signals under the pre-existing deduplication policy: all 120 call additions share the same feature, caller, kind and source span and are collapsed to a single candidate. `StructuralChangesExamined` still reports 240. Do not conflate examined source events with distinct impact signals.
 
 These remain proposed structural impacts, **not** measured execution, affected business behavior, Git patch analysis, or accepted T025/S05 architecture.
+
+## Retained-identity structural changes — T025 follow-up (2026-11-14)
+
+After T011 GraphDiff exposes `changedNodes`/`changedEdges`, the analyzer
+now also reports **candidate** effects for a stable ID whose source evidence,
+label, canonical parent, edge endpoints or relation changed. Added/removed
+symbols retain their existing event kinds. New `StructuralChangeKind` values:
+
+- `NodeModifiedBefore` / `NodeModifiedAfter`: source-backed retained node in
+  FROM and TO respectively; either side may be excluded if untrusted.
+- `CallModifiedBefore`: retained edge's source-backed `Calls` side in FROM.
+- `CallModifiedAfter`: retained edge's source-backed `Calls` side in TO.
+
+Both call-side events remain separate even if the edge ID is identical:
+a relationship may have moved or ceased to be a `Calls` relation. When one
+side is inferred or not a static `Calls` edge, it yields **no** static
+witness event. The existing reverse-path analyzer always follows call edges
+from the corresponding exact revision; `RuntimeStatus` remains `Unknown`,
+feature membership remains a human *candidate*, and events remain subject to
+the same 500-event and output caps. These are **additive enum values** in the
+experimental v1 report and need client compatibility review.
+
+A method-body edit that leaves the Graph node/edge structural fields and
+evidence positions unchanged remains invisible. This is **not** a Git patch,
+AST/body comparison, actual test coverage or verified business change.
