@@ -58,6 +58,37 @@ public sealed class LocalGraphApiTests
     }
 
     [Fact]
+    public async Task NeighborPageEndpointPreservesExactRevisionAndFailsClosed()
+    {
+        using var fixture = new ApiFixture();
+        string url = "/api/graphs/Billing/v1/neighbors-page?symbolId=" +
+            Uri.EscapeDataString("Billing.Service::M:CreateInvoice");
+
+        var page = await fixture.Client.GetFromJsonAsync<JsonElement>(url + "&pageSize=1");
+        Assert.Equal(GraphNeighborPage.ContractSchema, page.GetProperty("schema").GetString());
+        Assert.Equal("Billing", page.GetProperty("project").GetString());
+        Assert.Equal("v1", page.GetProperty("revision").GetString());
+        Assert.Equal("Billing.Service::M:CreateInvoice", page.GetProperty("symbolId").GetString());
+        Assert.Equal("call-1", Assert.Single(page.GetProperty("edges").EnumerateArray()).GetProperty("edgeId").GetString());
+        Assert.False(page.GetProperty("hasMore").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, page.GetProperty("nextAfterEdgeId").ValueKind);
+
+        using var expired = await fixture.Client.GetAsync(url + "&pageSize=1&afterEdgeId=wrong");
+        Assert.Equal(HttpStatusCode.BadRequest, expired.StatusCode);
+        using var excluded = await fixture.Client.GetAsync(url + "&pageSize=101");
+        Assert.Equal(HttpStatusCode.BadRequest, excluded.StatusCode);
+        using var negative = await fixture.Client.GetAsync(url + "&pageSize=-1");
+        Assert.Equal(HttpStatusCode.BadRequest, negative.StatusCode);
+        using var malformed = await fixture.Client.GetAsync(url + "&pageSize=NaN");
+        Assert.Equal(HttpStatusCode.BadRequest, malformed.StatusCode);
+        using var notFound = await fixture.Client.GetAsync(
+            "/api/graphs/Billing/v1/neighbors-page?symbolId=not-a-graph-node");
+        Assert.Equal(HttpStatusCode.NotFound, notFound.StatusCode);
+        using var noRevision = await fixture.Client.GetAsync(url.Replace("/v1/", "/missing/", StringComparison.Ordinal));
+        Assert.Equal(HttpStatusCode.NotFound, noRevision.StatusCode);
+    }
+
+    [Fact]
     public async Task DiffUsesStoredExactRevisions()
     {
         using var fixture = new ApiFixture();
@@ -65,6 +96,54 @@ public sealed class LocalGraphApiTests
             "/api/graphs/Billing/diff?from=v1&to=v2");
         Assert.Equal("v1", diff.GetProperty("fromRevision").GetString());
         Assert.Single(diff.GetProperty("addedNodes").EnumerateArray());
+        Assert.Equal("Billing.Service::M:CreateInvoice",
+            Assert.Single(diff.GetProperty("changedNodes").EnumerateArray()).GetString());
+        Assert.Empty(diff.GetProperty("changedEdges").EnumerateArray());
+    }
+
+    [Theory]
+    [InlineData("invalid-json")]
+    [InlineData("identity")]
+    [InlineData("invalid-source")]
+    [InlineData("orphan")]
+    public async Task CorruptPersistedGraphReturnsSanitized422ButOtherRevisionRemainsAvailable(
+        string corruption)
+    {
+        using var fixture = new ApiFixture();
+        var stored = File.ReadAllText(fixture.FirstGraphPath);
+        string corrupted = corruption switch
+        {
+            "invalid-json" => "{private-source-marker",
+            "identity" => stored.Replace("\"Project\": \"Billing\"",
+                "\"Project\": \"private-source-marker\"", StringComparison.Ordinal),
+            "invalid-source" => stored.Replace("\"Line\": 12", "\"Line\": -1",
+                StringComparison.Ordinal),
+            "orphan" => stored.Replace("\"ToSymbolId\": \"Billing.Contracts::M:Apply\"",
+                "\"ToSymbolId\": \"private-source-marker\"", StringComparison.Ordinal),
+            _ => throw new ArgumentOutOfRangeException(nameof(corruption))
+        };
+        Assert.NotEqual(stored, corrupted);
+        File.WriteAllText(fixture.FirstGraphPath, corrupted);
+
+        using var broken = await fixture.Client.GetAsync("/api/graphs/Billing/v1");
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, broken.StatusCode);
+        var responseText = await broken.Content.ReadAsStringAsync();
+        Assert.DoesNotContain("private-source-marker", responseText, StringComparison.Ordinal);
+        Assert.DoesNotContain(fixture.FirstGraphPath, responseText, StringComparison.Ordinal);
+        Assert.Contains("Stored graph snapshot cannot be validated", responseText,
+            StringComparison.Ordinal);
+
+        using var diff = await fixture.Client.GetAsync("/api/graphs/Billing/diff?from=v1&to=v2");
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, diff.StatusCode);
+        using var neighbors = await fixture.Client.GetAsync(
+            "/api/graphs/Billing/v1/neighbors?symbolId=Billing.Service%3A%3AM%3ACreateInvoice");
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, neighbors.StatusCode);
+        using var unknown = await fixture.Client.GetAsync("/api/graphs/Billing/unknown");
+        Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
+        using var valid = await fixture.Client.GetAsync("/api/graphs/Billing/v2");
+        Assert.Equal(HttpStatusCode.OK, valid.StatusCode);
+        using var health = await fixture.Client.GetAsync("/health");
+        Assert.Equal(HttpStatusCode.OK, health.StatusCode);
     }
 
     [Fact]
@@ -96,16 +175,18 @@ public sealed class LocalGraphApiTests
         private readonly string _directory = Path.Combine(Path.GetTempPath(), "archpulse-server-tests-" + Guid.NewGuid().ToString("N"));
         private readonly WebApplicationFactory<Program> _factory;
         public HttpClient Client { get; }
+        public string FirstGraphPath { get; }
 
         public ApiFixture()
         {
             Directory.CreateDirectory(_directory);
             var store = new GraphSnapshotStore(_directory);
             var first = Create("v1");
-            store.Save(first);
+            FirstGraphPath = store.Save(first);
             var second = Create("v2") with
             {
-                Nodes = Create("v2").Nodes.Concat(
+                Nodes = Create("v2").Nodes.Select(node => node.SymbolId == "Billing.Service::M:CreateInvoice"
+                    ? node with { Label = "CreateInvoice (updated source evidence)" } : node).Concat(
                 [new GraphNode("Billing.Service::M:Reconcile", GraphNodeKind.Method, "Reconcile",
                     "project:Billing.Service", new SourceEvidence("v2", "Billing.Service/InvoiceService.cs",
                         15, 1, EvidenceKind.Static))]).ToArray()

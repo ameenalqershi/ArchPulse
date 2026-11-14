@@ -46,8 +46,9 @@ export function DataJourneyPanel({ graph, symbolId, onSelect }: {
     {result === 'error' && <p role="status">DataJourney evidence is unavailable for this selection.</p>}
     {result && result !== 'error' && <>
       {result.status === 'NotIndexed' && <p>DataJourney has not been indexed for this revision.</p>}
-      {result.status === 'NoWitness' && <p>No witness was found for this method in the supported analysis.</p>}
-      {result.truncated && <p className="test-unavailable">Analysis limit reached. Some paths may be missing.</p>}
+      {result.status === 'NoWitness' && <p>No witness was found for this method in the supported analysis. This is not proof of safety.</p>}
+      {result.status === 'Indeterminate' && <p role="status" className="test-unavailable">No retained witness for this method; the analysis limit prevents any conclusion about missing paths.</p>}
+      {result.status === 'Mapped' && result.truncated && <p className="test-unavailable">Analysis limit reached. Some paths may be missing.</p>}
       {result.findings.map((flow, index) => <details key={index}>
         <summary>{boundaryLabels[flow.boundary]} · {flow.hops.length} {flow.hops.length === 1 ? 'hop' : 'hops'}</summary>
         <ol>

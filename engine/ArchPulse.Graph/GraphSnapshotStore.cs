@@ -83,16 +83,42 @@ public sealed class GraphSnapshotStore
         Validate(current);
         if (!string.Equals(previous.Project, current.Project, StringComparison.Ordinal))
             throw new InvalidOperationException("Cannot compare graph snapshots from different projects.");
-        var oldNodes = previous.Nodes.Select(x => x.SymbolId).ToHashSet(StringComparer.Ordinal);
-        var newNodes = current.Nodes.Select(x => x.SymbolId).ToHashSet(StringComparer.Ordinal);
-        var oldEdges = previous.Edges.Select(x => x.EdgeId).ToHashSet(StringComparer.Ordinal);
-        var newEdges = current.Edges.Select(x => x.EdgeId).ToHashSet(StringComparer.Ordinal);
+        var oldNodes = previous.Nodes.ToDictionary(node => node.SymbolId, StringComparer.Ordinal);
+        var newNodes = current.Nodes.ToDictionary(node => node.SymbolId, StringComparer.Ordinal);
+        var oldEdges = previous.Edges.ToDictionary(edge => edge.EdgeId, StringComparer.Ordinal);
+        var newEdges = current.Edges.ToDictionary(edge => edge.EdgeId, StringComparer.Ordinal);
         return new GraphDifference(previous.Revision, current.Revision,
-            newNodes.Except(oldNodes).Order(StringComparer.Ordinal).ToArray(),
-            oldNodes.Except(newNodes).Order(StringComparer.Ordinal).ToArray(),
-            newEdges.Except(oldEdges).Order(StringComparer.Ordinal).ToArray(),
-            oldEdges.Except(newEdges).Order(StringComparer.Ordinal).ToArray());
+            newNodes.Keys.Except(oldNodes.Keys).Order(StringComparer.Ordinal).ToArray(),
+            oldNodes.Keys.Except(newNodes.Keys).Order(StringComparer.Ordinal).ToArray(),
+            newEdges.Keys.Except(oldEdges.Keys).Order(StringComparer.Ordinal).ToArray(),
+            oldEdges.Keys.Except(newEdges.Keys).Order(StringComparer.Ordinal).ToArray(),
+            oldNodes.Keys.Intersect(newNodes.Keys)
+                .Where(id => !SameNodeAcrossRevisions(oldNodes[id], newNodes[id]))
+                .Order(StringComparer.Ordinal).ToArray(),
+            oldEdges.Keys.Intersect(newEdges.Keys)
+                .Where(id => !SameEdgeAcrossRevisions(oldEdges[id], newEdges[id]))
+                .Order(StringComparer.Ordinal).ToArray());
     }
+
+    // Source revision is intentionally ignored: every static evidence record
+    // receives the new revision even when all other content is unchanged.
+    // This is a source-location/structural delta, not an AST/body diff.
+    private static bool SameLocationAcrossRevisions(SourceEvidence old, SourceEvidence current) =>
+        old.Kind == current.Kind &&
+        string.Equals(old.RelativeFile, current.RelativeFile, StringComparison.Ordinal) &&
+        old.Line == current.Line && old.Column == current.Column;
+
+    private static bool SameNodeAcrossRevisions(GraphNode old, GraphNode current) =>
+        old.Kind == current.Kind &&
+        string.Equals(old.Label, current.Label, StringComparison.Ordinal) &&
+        string.Equals(old.ParentSymbolId, current.ParentSymbolId, StringComparison.Ordinal) &&
+        SameLocationAcrossRevisions(old.Evidence, current.Evidence);
+
+    private static bool SameEdgeAcrossRevisions(GraphEdge old, GraphEdge current) =>
+        string.Equals(old.FromSymbolId, current.FromSymbolId, StringComparison.Ordinal) &&
+        string.Equals(old.ToSymbolId, current.ToSymbolId, StringComparison.Ordinal) &&
+        string.Equals(old.Relation, current.Relation, StringComparison.Ordinal) &&
+        SameLocationAcrossRevisions(old.Evidence, current.Evidence);
 
     public static void Validate(GraphSnapshot snapshot)
     {
@@ -130,16 +156,30 @@ public sealed class GraphSnapshotStore
         // Validate the canonical parent hierarchy independently from call/flow edges.
         var parents = snapshot.Nodes.ToDictionary(n => n.SymbolId, n => n.ParentSymbolId,
             StringComparer.Ordinal);
+        // A separate visited set for each starting node makes a deep, valid
+        // hierarchy quadratic. Resolve each parent chain once instead, with
+        // explicit in-progress/completed states and no recursive stack growth.
+        // This scans ownership only; call and feature edges may contain cycles.
+        var resolved = new HashSet<string>(StringComparer.Ordinal);
+        var visiting = new HashSet<string>(StringComparer.Ordinal);
+        var chain = new List<string>();
         foreach (var id in ids)
         {
-            var visited = new HashSet<string>(StringComparer.Ordinal);
+            if (resolved.Contains(id)) continue;
             string? cursor = id;
-            while (cursor is not null)
+            while (cursor is not null && !resolved.Contains(cursor))
             {
-                if (!visited.Add(cursor))
-                    throw new InvalidDataException($"Cycle in canonical ownership hierarchy at {cursor}.");
+                if (!visiting.Add(cursor))
+                    throw new InvalidDataException(
+                        $"Cycle in canonical ownership hierarchy at {cursor}.");
+                chain.Add(cursor);
                 cursor = parents[cursor];
             }
+
+            foreach (string item in chain)
+                resolved.Add(item);
+            visiting.Clear();
+            chain.Clear();
         }
     }
 
@@ -172,10 +212,17 @@ public sealed class GraphSnapshotStore
     }
 }
 
+/// <summary>
+/// Additions/removals describe identity differences. ChangedNodes/ChangedEdges
+/// report retained identities whose structural fields or source locations differ.
+/// A method-body edit preserving those fields is outside this projection.
+/// </summary>
 public sealed record GraphDifference(
     string FromRevision,
     string ToRevision,
     IReadOnlyList<string> AddedNodes,
     IReadOnlyList<string> RemovedNodes,
     IReadOnlyList<string> AddedEdges,
-    IReadOnlyList<string> RemovedEdges);
+    IReadOnlyList<string> RemovedEdges,
+    IReadOnlyList<string> ChangedNodes,
+    IReadOnlyList<string> ChangedEdges);

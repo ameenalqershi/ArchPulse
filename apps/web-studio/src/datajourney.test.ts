@@ -45,5 +45,10 @@ describe('DataJourney graph evidence', () => {
     expect(parseJourneySelection({ ...empty, status: 'NotIndexed' }, graph, 'entry').status).toBe('NotIndexed');
     expect(parseJourneySelection({ ...empty, status: 'NoWitness' }, graph, 'entry').status).toBe('NoWitness');
     expect(() => parseJourneySelection(empty, graph, 'entry')).toThrow();
+    const limited = { ...empty, truncated: true };
+    expect(parseJourneySelection({ ...limited, status: 'Indeterminate' },
+      graph, 'entry').status).toBe('Indeterminate');
+    expect(() => parseJourneySelection({ ...limited, status: 'NoWitness' }, graph, 'entry')).toThrow();
+    expect(() => parseJourneySelection({ ...empty, status: 'Indeterminate' }, graph, 'entry')).toThrow();
   });
 });

@@ -17,7 +17,7 @@ export interface JourneyWitness {
   destination: SourceEvidence;
 }
 export interface JourneySelection {
-  status: 'NotIndexed' | 'NoWitness' | 'Mapped';
+  status: 'NotIndexed' | 'NoWitness' | 'Indeterminate' | 'Mapped';
   truncated: boolean;
   findings: JourneyWitness[];
 }
@@ -43,10 +43,13 @@ export function parseJourneySelection(
       payload.project !== graph.project || payload.revision !== graph.revision ||
       payload.symbolId !== selectedId || payload.evidence !== 'Static' ||
       payload.runtimeStatus !== 'Unknown' || typeof payload.truncated !== 'boolean' ||
-      !(payload.status === 'NotIndexed' || payload.status === 'NoWitness' || payload.status === 'Mapped') ||
+      !(payload.status === 'NotIndexed' || payload.status === 'NoWitness' ||
+        payload.status === 'Indeterminate' || payload.status === 'Mapped') ||
       !Array.isArray(payload.findings) || payload.findings.length > 512 ||
       (payload.status === 'Mapped') !== (payload.findings.length > 0) ||
-      (payload.status === 'NotIndexed' && payload.truncated)) throw bad();
+      (payload.status === 'NotIndexed' && payload.truncated) ||
+      (payload.status === 'NoWitness' && payload.truncated) ||
+      (payload.status === 'Indeterminate' && !payload.truncated)) throw bad();
 
   const methods = new Set(graph.nodes.filter(node => node.kind === 'Method').map(node => node.symbolId));
   const edges = new Map(graph.edges.map(edge => [edge.edgeId, edge]));
