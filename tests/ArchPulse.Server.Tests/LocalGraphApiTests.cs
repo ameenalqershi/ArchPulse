@@ -96,6 +96,9 @@ public sealed class LocalGraphApiTests
             "/api/graphs/Billing/diff?from=v1&to=v2");
         Assert.Equal("v1", diff.GetProperty("fromRevision").GetString());
         Assert.Single(diff.GetProperty("addedNodes").EnumerateArray());
+        Assert.Equal("Billing.Service::M:CreateInvoice",
+            Assert.Single(diff.GetProperty("changedNodes").EnumerateArray()).GetString());
+        Assert.Empty(diff.GetProperty("changedEdges").EnumerateArray());
     }
 
     [Fact]
@@ -136,7 +139,8 @@ public sealed class LocalGraphApiTests
             store.Save(first);
             var second = Create("v2") with
             {
-                Nodes = Create("v2").Nodes.Concat(
+                Nodes = Create("v2").Nodes.Select(node => node.SymbolId == "Billing.Service::M:CreateInvoice"
+                    ? node with { Label = "CreateInvoice (updated source evidence)" } : node).Concat(
                 [new GraphNode("Billing.Service::M:Reconcile", GraphNodeKind.Method, "Reconcile",
                     "project:Billing.Service", new SourceEvidence("v2", "Billing.Service/InvoiceService.cs",
                         15, 1, EvidenceKind.Static))]).ToArray()
