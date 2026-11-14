@@ -127,6 +127,85 @@ public sealed class FeatureImpactAnalyzerTests
     }
 
     [Fact]
+    public void RetainedNodeIdentityWithChangedLabelAndLocationIsAnUnverifiedCandidateImpact()
+    {
+        var before = Graph("before");
+        var after = Graph("after");
+        after = after with
+        {
+            Nodes = after.Nodes.Select(n => n.SymbolId == "method:Save"
+                ? n with
+                {
+                    Label = "SaveAsync",
+                    Evidence = n.Evidence with { Line = 24 }
+                } : n).ToArray()
+        };
+
+        var diff = GraphSnapshotStore.Compare(before, after);
+        Assert.Equal(["method:Save"], diff.ChangedNodes);
+        var result = FeatureImpactAnalyzer.Assess(before, after, Catalog(before));
+        Assert.Equal(2, result.StructuralChangesExamined);
+        var beforeImpact = Assert.Single(result.Impacts,
+            x => x.ChangeKind == StructuralChangeKind.NodeModifiedBefore);
+        var afterImpact = Assert.Single(result.Impacts,
+            x => x.ChangeKind == StructuralChangeKind.NodeModifiedAfter);
+        Assert.Equal("before", beforeImpact.ChangeEvidence.Revision);
+        Assert.Equal("after", afterImpact.ChangeEvidence.Revision);
+        Assert.Equal(24, afterImpact.ChangeEvidence.Line);
+        Assert.All(result.Impacts, impact =>
+        {
+            Assert.Equal("method:Save", impact.ChangedSymbolId);
+            Assert.Equal("create-invoice", impact.FeatureId);
+            Assert.Equal(FeatureImpactBasis.StaticCallerPath, impact.Basis);
+            Assert.Single(impact.StaticCallWitness);
+        });
+        Assert.Equal("Unknown", result.RuntimeStatus);
+    }
+
+    [Fact]
+    public void RetainedCallIdentityChangedDestinationPreservesBeforeAndAfterEvidence()
+    {
+        var before = Graph("before");
+        var after = Graph("after") with
+        {
+            Edges =
+            [
+                new GraphEdge("call:create-save", "method:Create", "method:Refund",
+                    "Calls", new SourceEvidence("after", "Billing.cs", 30, 1, EvidenceKind.Static))
+            ]
+        };
+        Assert.Equal(["call:create-save"], GraphSnapshotStore.Compare(before, after).ChangedEdges);
+
+        var result = FeatureImpactAnalyzer.Assess(before, after, Catalog(before));
+        Assert.Equal(2, result.StructuralChangesExamined);
+        var oldSide = Assert.Single(result.Impacts,
+            x => x.ChangeKind == StructuralChangeKind.CallModifiedBefore);
+        var newSide = Assert.Single(result.Impacts,
+            x => x.ChangeKind == StructuralChangeKind.CallModifiedAfter);
+        Assert.Equal("before", oldSide.ChangeEvidence.Revision);
+        Assert.Equal(10, oldSide.ChangeEvidence.Line);
+        Assert.Equal("after", newSide.ChangeEvidence.Revision);
+        Assert.Equal(30, newSide.ChangeEvidence.Line);
+        Assert.Equal("method:Create", oldSide.ChangedSymbolId);
+        Assert.Equal("method:Create", newSide.ChangedSymbolId);
+        Assert.Empty(oldSide.StaticCallWitness);
+        Assert.Empty(newSide.StaticCallWitness);
+
+        // An inferred new-side relation cannot be promoted into Static evidence.
+        var inferred = after with
+        {
+            Edges = after.Edges.Select(e => e with
+            { Evidence = e.Evidence with { Kind = EvidenceKind.Inferred } }).ToArray()
+        };
+        var limited = FeatureImpactAnalyzer.Assess(before, inferred, Catalog(before));
+        Assert.Equal(1, limited.StructuralChangesExamined);
+        Assert.Single(limited.Impacts,
+            x => x.ChangeKind == StructuralChangeKind.CallModifiedBefore);
+        Assert.DoesNotContain(limited.Impacts,
+            x => x.ChangeKind == StructuralChangeKind.CallModifiedAfter);
+    }
+
+    [Fact]
     public void RejectsWrongCatalogIdentityProjectRevisionAndInvalidLimits()
     {
         var before = Graph("old");
@@ -170,8 +249,11 @@ public sealed class FeatureImpactAnalyzerTests
                 [new FeatureMembership("entry", "Proposed", EvidenceKind.Designed)])
         ]);
         var report = FeatureImpactAnalyzer.Assess(before, after, catalog);
-        Assert.Equal(4, report.StructuralChangesExamined);
-        Assert.Equal(4, report.Impacts.Count);
+        // The retained 'entry' symbol also changed its evidence location.
+        Assert.Equal(6, report.StructuralChangesExamined);
+        Assert.Equal(6, report.Impacts.Count);
+        Assert.Single(report.Impacts, x => x.ChangeKind == StructuralChangeKind.NodeModifiedBefore);
+        Assert.Single(report.Impacts, x => x.ChangeKind == StructuralChangeKind.NodeModifiedAfter);
         var removed = Assert.Single(report.Impacts, x =>
             x.ChangeKind == StructuralChangeKind.NodeRemoved);
         Assert.Equal("removed", removed.ChangedSymbolId);
@@ -191,7 +273,9 @@ public sealed class FeatureImpactAnalyzerTests
     public void ManyIndependentChangesRemainCompleteAndDeterministic()
     {
         const int changed = 120;
-        var beforeEvidence = new SourceEvidence("v1", "Old.cs", 1, 1, EvidenceKind.Static);
+        // Keep the retained entry's source location identical across revisions,
+        // so the stress fixture isolates exactly 120 additions and 120 calls.
+        var beforeEvidence = new SourceEvidence("v1", "New.cs", 1, 1, EvidenceKind.Static);
         var afterEvidence = new SourceEvidence("v2", "New.cs", 1, 1, EvidenceKind.Static);
         var before = new GraphSnapshot("Wide", "v1",
             [new("entry", GraphNodeKind.Method, "Entry", null, beforeEvidence)], [], []);

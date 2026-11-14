@@ -7,7 +7,11 @@ namespace ArchPulse.Graph;
 /// proposal; a static witness path is not a runtime invocation or business test.
 /// </summary>
 public enum FeatureImpactBasis { DirectCandidateMember, StaticCallerPath }
-public enum StructuralChangeKind { NodeAdded, NodeRemoved, CallAdded, CallRemoved }
+public enum StructuralChangeKind
+{
+    NodeAdded, NodeRemoved, CallAdded, CallRemoved,
+    NodeModifiedBefore, NodeModifiedAfter, CallModifiedBefore, CallModifiedAfter
+}
 
 public sealed record FeatureImpactSignal(
     string FeatureId, string MemberSymbolId, string ChangedSymbolId,
@@ -76,6 +80,32 @@ public static class FeatureImpactAnalyzer
                 e.Evidence.Kind is EvidenceKind.Static or EvidenceKind.Verified)
             .Select(e => new ChangeEvent(e.FromSymbolId, StructuralChangeKind.CallRemoved,
                 e.Evidence, before)));
+
+        // A stable symbol/edge ID can still change its structural content or
+        // source location. GraphDifference does not detect body-only edits.
+        // The FROM catalog is a candidate proposal, never verified membership.
+        events.AddRange(diff.ChangedNodes.Select(x => beforeNodes[x])
+            .Where(n => n.Evidence.Kind is EvidenceKind.Static or EvidenceKind.Verified)
+            .Select(n => new ChangeEvent(n.SymbolId, StructuralChangeKind.NodeModifiedBefore,
+                n.Evidence, before)));
+        events.AddRange(diff.ChangedNodes.Select(x => afterNodes[x])
+            .Where(n => n.Evidence.Kind is EvidenceKind.Static or EvidenceKind.Verified)
+            .Select(n => new ChangeEvent(n.SymbolId, StructuralChangeKind.NodeModifiedAfter,
+                n.Evidence, after)));
+
+        // Retained Call IDs may change their endpoints, relation, or evidence.
+        // Represent each valid static side separately rather than falsely
+        // reporting an added/removed edge; witness paths remain revision bound.
+        events.AddRange(diff.ChangedEdges.Select(x => beforeEdges[x])
+            .Where(e => e.Relation == "Calls" &&
+                e.Evidence.Kind is EvidenceKind.Static or EvidenceKind.Verified)
+            .Select(e => new ChangeEvent(e.FromSymbolId, StructuralChangeKind.CallModifiedBefore,
+                e.Evidence, before)));
+        events.AddRange(diff.ChangedEdges.Select(x => afterEdges[x])
+            .Where(e => e.Relation == "Calls" &&
+                e.Evidence.Kind is EvidenceKind.Static or EvidenceKind.Verified)
+            .Select(e => new ChangeEvent(e.FromSymbolId, StructuralChangeKind.CallModifiedAfter,
+                e.Evidence, after)));
         if (events.Count > MaxEvents)
             throw new InvalidDataException("Too many structural deltas: narrow the revision interval.");
 
