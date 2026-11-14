@@ -4,6 +4,8 @@
 
 The source list is all restored direct and transitive NuGet package versions in committed `packages.lock.json` files. The scanner reads package `.nuspec` records from the local NuGet cache, **does not download arbitrary license URLs**, and compares explicit SPDX license expressions with the narrowly reviewed `acceptedSpdxExpressions` policy. A nonmatching expression, missing package metadata, stale exception, or previously unseen URL-only license fails the default gate.
 
+For deterministic review, the native auditor rejects duplicate JSON object properties at any depth in the policy and NuGet lockfiles before parsing their semantic contents. Policy property names are checked case-insensitively, matching its serializer settings; diagnostics intentionally omit untrusted property names. A passing audit still does not attest package authenticity or legal compatibility.
+
 A legacy metadata exception applies only to a URL-only package whose current `licenseUrl` exactly matches its recorded policy `source`. New SPDX license declarations, license files, missing URLs or changed URLs must fail the gate even if the package ID/version is on the exception list. A matching URL is metadata consistency, **not** source-code license verification.
 
 A **documented legacy metadata exception** may keep the *metadata-change* gate green while showing a nonzero `pendingManualReviews` count. This is not a conclusion that its license is compatible. It must have an issue, a reason, and the declared primary source for later verification. The stricter `--require-complete` mode deliberately fails while unresolved reviews exist and is a prerequisite to claiming a complete license review or production release readiness.

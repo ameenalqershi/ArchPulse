@@ -42,7 +42,10 @@ public static partial class NuGetLicenseAuditor
     {
         var repo = Path.GetFullPath(repositoryRoot);
         var cache = Path.GetFullPath(packagesCacheRoot);
-        var policy = JsonSerializer.Deserialize<LicensePolicy>(File.ReadAllText(policyFile), JsonOptions)
+        using var policyDocument = JsonDocument.Parse(File.ReadAllText(policyFile));
+        // Policy property lookup is case-insensitive; both spellings must be unique.
+        RejectDuplicateProperties(policyDocument.RootElement, StringComparer.OrdinalIgnoreCase);
+        var policy = policyDocument.RootElement.Deserialize<LicensePolicy>(JsonOptions)
             ?? throw new InvalidDataException("NuGet license policy is empty.");
         if (policy.Schema != "archpulse-nuget-license-policy/v1" ||
             policy.AcceptedSpdxExpressions is null || policy.PendingLegacyMetadataReviews is null)
@@ -64,6 +67,7 @@ public static partial class NuGetLicenseAuditor
         foreach (var file in lockFiles)
         {
             using var document = JsonDocument.Parse(File.ReadAllText(file));
+            RejectDuplicateProperties(document.RootElement, StringComparer.Ordinal);
             if (!document.RootElement.TryGetProperty("dependencies", out var dependencies) ||
                 dependencies.ValueKind != JsonValueKind.Object)
                 throw new InvalidDataException($"Missing lockfile dependencies: {file}");
@@ -135,6 +139,27 @@ public static partial class NuGetLicenseAuditor
             failures.Order(StringComparer.Ordinal).ToArray(), failures.Count == 0);
     }
 
+    // Last-value-wins parsing could hide an earlier lockfile dependency or
+    // broaden a license policy. Never echo untrusted property names in errors.
+    private static void RejectDuplicateProperties(JsonElement value, StringComparer comparer)
+    {
+        if (value.ValueKind == JsonValueKind.Object)
+        {
+            var seen = new HashSet<string>(comparer);
+            foreach (var property in value.EnumerateObject())
+            {
+                if (!seen.Add(property.Name))
+                    throw new InvalidDataException("Duplicate JSON object property in NuGet license audit input.");
+                RejectDuplicateProperties(property.Value, comparer);
+            }
+        }
+        else if (value.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in value.EnumerateArray())
+                RejectDuplicateProperties(item, comparer);
+        }
+    }
+
     public static LicenseMetadata ReadNuspec(string cacheRoot, string package, string version)
     {
         if (!SafeIdentity().IsMatch(package) || !SafeIdentity().IsMatch(version) ||
@@ -148,8 +173,10 @@ public static partial class NuGetLicenseAuditor
             throw new FileNotFoundException($"Missing cached .nuspec: {package}@{version}. Restore first.", path);
         var settings = new XmlReaderSettings
         {
-            DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null,
-            MaxCharactersInDocument = 4_000_000, IgnoreComments = true
+            DtdProcessing = DtdProcessing.Prohibit,
+            XmlResolver = null,
+            MaxCharactersInDocument = 4_000_000,
+            IgnoreComments = true
         };
         using var reader = XmlReader.Create(path, settings);
         var xml = XDocument.Load(reader);
