@@ -13,6 +13,51 @@ public static class GraphQueries
     }
 
     /// <summary>
+    /// Bounded, stable, exclusive EdgeId-keyset pagination over incident graph edges.
+    /// Scans the stored snapshot but retains at most pageSize + 1 edges; it does not
+    /// claim bounded graph loading, a cached index, or permission-aware ViewScope.
+    /// </summary>
+    public static GraphNeighborPage NeighborsPage(
+        GraphSnapshot snapshot, string symbolId, int pageSize = 50, string? afterEdgeId = null)
+    {
+        if (pageSize is < 1 or > 100)
+            throw new ArgumentOutOfRangeException(nameof(pageSize), "Page size must be 1..100.");
+        if (string.IsNullOrWhiteSpace(symbolId) || symbolId.Length > 2048)
+            throw new ArgumentException("An exact bounded symbol is required.", nameof(symbolId));
+        if (afterEdgeId is not null && (afterEdgeId.Length == 0 || afterEdgeId.Length > 2048))
+            throw new ArgumentException("An exact bounded edge cursor is required.", nameof(afterEdgeId));
+
+        GraphSnapshotStore.Validate(snapshot);
+        if (!snapshot.Nodes.Any(n => n.SymbolId == symbolId))
+            throw new KeyNotFoundException($"Unknown symbol: {symbolId}");
+
+        var cursorPresent = afterEdgeId is null;
+        var selected = new SortedSet<GraphEdge>(Comparer<GraphEdge>.Create(
+            (a, b) => StringComparer.Ordinal.Compare(a.EdgeId, b.EdgeId)));
+        foreach (var edge in snapshot.Edges)
+        {
+            if (edge.FromSymbolId != symbolId && edge.ToSymbolId != symbolId) continue;
+            if (edge.EdgeId == afterEdgeId)
+            {
+                cursorPresent = true;
+                continue;
+            }
+            if (afterEdgeId is not null &&
+                StringComparer.Ordinal.Compare(edge.EdgeId, afterEdgeId) <= 0) continue;
+
+            selected.Add(edge);
+            if (selected.Count > pageSize + 1)
+                selected.Remove(selected.Max!);
+        }
+        if (!cursorPresent)
+            throw new ArgumentException("Cursor is not an incident edge in this exact graph.", nameof(afterEdgeId));
+        bool hasMore = selected.Count > pageSize;
+        var page = selected.Take(pageSize).ToArray();
+        return new GraphNeighborPage(GraphNeighborPage.ContractSchema, snapshot.Project, snapshot.Revision,
+            symbolId, pageSize, page, hasMore, hasMore ? page[^1].EdgeId : null);
+    }
+
+    /// <summary>
     /// Shortest path through source-proven static or independently verified directional edges.
     /// This is not a measured runtime call trace.
     /// </summary>
@@ -63,4 +108,15 @@ public static class GraphQueries
         }
         return [];
     }
+}
+
+/// <summary>
+/// Cursor is the previous page's exact last EdgeId; not an authenticated token.
+/// Consumers must retain the same project, revision and symbol between pages.
+/// </summary>
+public sealed record GraphNeighborPage(
+    string Schema, string Project, string Revision, string SymbolId, int PageSize,
+    IReadOnlyList<GraphEdge> Edges, bool HasMore, string? NextAfterEdgeId)
+{
+    public const string ContractSchema = "archpulse.graph-neighbors-page/v1";
 }

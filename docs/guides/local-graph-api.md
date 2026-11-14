@@ -62,3 +62,40 @@ beyond the local testing purpose.
 - Future Studio/MCP integration must authenticate caller and symbol
   selection, enforce workspace boundaries, and avoid treating
   'Static' evidence as observed runtime behavior.
+
+## Bounded Graph neighbor pages (T011 / S02 partial, 2026-11-14)
+
+The original `/neighbors` endpoint remains unchanged for existing local consumers.
+For callers requiring predictable response counts, use the additive read-only API:
+
+```
+GET /api/graphs/{project}/{revision}/neighbors-page?symbolId=EXACT_SYMBOL&pageSize=25
+GET /api/graphs/{project}/{revision}/neighbors-page?symbolId=EXACT_SYMBOL&pageSize=25&afterEdgeId=LAST_EDGE_ID
+```
+
+A successful response is the JSON contract `archpulse.graph-neighbors-page/v1`
+with `schema`, `project`, `revision`, `symbolId`, `pageSize`,
+`edges` (exact source-backed `GraphEdge` records), `hasMore` and
+`nextAfterEdgeId`. Edges are ordered by ordinal exact `EdgeId`, no
+sort-order guessing; the cursor is the last returned EdgeId, **exclusive**.
+A missing or nonincident cursor returns HTTP 400, an unknown exact method/
+node returns HTTP 404, and an empty page after the final edge is valid.
+`pageSize` defaults to 50 and is restricted to 1..100. No arbitrary
+query expressions or code execution are accepted. Clients must preserve
+**project, revision, and symbol** across page requests; this simple exact
+EdgeId cursor is not signed and must not be treated as a revision-bound,
+authenticated continuation token.
+
+At most `pageSize+1` incident edges are temporarily held in the top-k
+selection set, independent of degree. Each page still loads and validates
+the **entire** local immutable graph and scans its edges: this is **bounded
+returned edge count and selection memory**, **not bounded store I/O**, an
+indexed/permission-scoped query engine, a limit on arbitrary serialized
+string sizes, or full S02/T011/T121 acceptance. The legacy full graph and
+neighbors responses remain unbounded and experimental. This endpoint is
+localhost-only and unauthenticated; do not expose externally.
+
+`GraphSnapshotStoreTests` cover stable order, multi-page completeness,
+non-incident or fabricated cursors and unsafe page limits. `LocalGraphApiTests`
+exercise the actual HTTP schema, 400 and 404 failure responses. All static
+evidence retains its original kind; none is upgraded to runtime observations.
