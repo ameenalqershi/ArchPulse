@@ -27,7 +27,8 @@ internal static class CrossProjectDataJourneyEndpoints
                 symbolId,
                 evidence = EvidenceKind.Static,
                 runtimeStatus = "Unknown",
-                status = report is null ? "NotIndexed" : findings.Length == 0 ? "NoWitness" : "Mapped",
+                status = report is null ? "NotIndexed" : findings.Length > 0 ? "Mapped" :
+                    report.Truncated ? "Indeterminate" : "NoWitness",
                 truncated = report?.Truncated ?? false,
                 findings
             });

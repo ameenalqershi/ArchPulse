@@ -43,7 +43,14 @@ at that directory with `ARCHPULSE_GRAPH_STORE`. Open the matching graph in
 Web Studio and select a method. Expand a witness to inspect source locations
 and jump to the destination method of an argument or return. The inspector
 labels static possibility, unknown runtime evidence, missing indexes and
-analysis limits. The GET endpoint reads stored source metadata only.
+analysis limits. For the exact selected method, \`NotIndexed\` means the
+revision has no stored report, \`Mapped\` means at least one retained static
+witness, and \`NoWitness\` means none in a non-truncated analysis. If the
+report was truncated and no witness was retained, the API returns
+\`Indeterminate\` rather than asserting absence; this is an **unknown coverage**
+outcome, not evidence that a sensitive flow is safe. \`Mapped\` can still be
+truncated, so additional paths may exist. Runtime remains \`Unknown\` in every
+case. The GET endpoint reads stored source metadata only.
 
 ## Reproduce
 

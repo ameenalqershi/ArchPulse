@@ -52,6 +52,26 @@ public sealed class CrossProjectDataJourneyApiTests
     }
 
     [Fact]
+    public async Task TruncatedSelectionWithoutWitnessIsIndeterminateNotSafeOrAbsent()
+    {
+        using var fixture = new Fixture();
+        fixture.Journeys.Save(fixture.Graph, fixture.Report with { Truncated = true });
+
+        var unrelated = await fixture.Client.GetFromJsonAsync<JsonElement>(
+            Fixture.RouteFor(Fixture.Unrelated));
+        Assert.Equal("Indeterminate", unrelated.GetProperty("status").GetString());
+        Assert.True(unrelated.GetProperty("truncated").GetBoolean());
+        Assert.Equal("Unknown", unrelated.GetProperty("runtimeStatus").GetString());
+        Assert.Empty(unrelated.GetProperty("findings").EnumerateArray());
+
+        var mapped = await fixture.Client.GetFromJsonAsync<JsonElement>(
+            Fixture.RouteFor(Fixture.Callee));
+        Assert.Equal("Mapped", mapped.GetProperty("status").GetString());
+        Assert.True(mapped.GetProperty("truncated").GetBoolean());
+        Assert.Single(mapped.GetProperty("findings").EnumerateArray());
+    }
+
+    [Fact]
     public void RejectsForgedCallEdgesAndSameRevisionReplacement()
     {
         using var fixture = new Fixture();
