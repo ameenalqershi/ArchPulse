@@ -146,6 +146,66 @@ public sealed class GraphRevisionJournalTests
             firstReceipt.EventPath)!, "*.event.json").Length);
     }
 
+    [Fact]
+    public void HistoricalReplayReturnsExactSourceEvidenceForEachCommittedRevision()
+    {
+        using var temp = new JournalDirectory();
+        var journal = new GraphRevisionJournal(temp.Path);
+        var first = Graph("r1", "public class A { public int One() => 1; }");
+        var second = Graph("r2", "public class A { public int One() => 2; public void Two() {} }");
+        var third = Graph("r3", "public class B {}");
+        journal.Append(first, null);
+        journal.Append(second, "r1");
+        journal.Append(third, "r2");
+
+        var earlier = Assert.IsType<GraphSnapshot>(journal.ReplayAt("Invoices", "r1"));
+        var middle = Assert.IsType<GraphSnapshot>(journal.ReplayAt("Invoices", "r2"));
+        var head = Assert.IsType<GraphSnapshot>(journal.Replay("Invoices"));
+        Assert.Equal(first.Nodes.OrderBy(n => n.SymbolId), earlier.Nodes);
+        Assert.Equal(second.Nodes.OrderBy(n => n.SymbolId), middle.Nodes);
+        Assert.Equal("r3", head.Revision);
+        Assert.All(earlier.Nodes, n => Assert.Equal("r1", n.Evidence.Revision));
+        Assert.All(middle.Nodes, n => Assert.Equal("r2", n.Evidence.Revision));
+        Assert.NotEqual(head.Nodes.Select(n => n.SymbolId), earlier.Nodes.Select(n => n.SymbolId));
+    }
+
+    [Fact]
+    public void HistoricalReplayReturnsNullForUnknownRevisionWithoutGuessingHead()
+    {
+        using var temp = new JournalDirectory();
+        var journal = new GraphRevisionJournal(temp.Path);
+        Assert.Null(journal.ReplayAt("Invoices", "r1"));
+        Assert.Throws<ArgumentException>(() => journal.ReplayAt("Invoices", "  "));
+        journal.Append(Graph("r1", "public class A {}"), null);
+        Assert.Null(journal.ReplayAt("Invoices", "r99"));
+        Assert.Equal("r1", journal.Replay("Invoices")!.Revision);
+    }
+
+    [Fact]
+    public void HistoricalReplayFailsClosedIfRequiredPrefixIsCorrupt()
+    {
+        using var temp = new JournalDirectory();
+        var journal = new GraphRevisionJournal(temp.Path);
+        var first = journal.Append(Graph("r1", "public class A {}"), null);
+        journal.Append(Graph("r2", "public class B {}"), "r1");
+        File.WriteAllText(first.EventPath, "{malformed-event");
+        Assert.Throws<InvalidDataException>(() => journal.ReplayAt("Invoices", "r2"));
+    }
+
+    [Fact]
+    public void HistoricalRecoveryCanReadValidPrefixWhenUnrelatedNewerEventIsCorrupt()
+    {
+        using var temp = new JournalDirectory();
+        var journal = new GraphRevisionJournal(temp.Path);
+        journal.Append(Graph("r1", "public class A {}"), null);
+        var second = journal.Append(Graph("r2", "public class B {}"), "r1");
+        File.WriteAllText(second.EventPath, "{malformed-event");
+        Assert.Equal("r1", journal.ReplayAt("Invoices", "r1")!.Revision);
+        Assert.Throws<InvalidDataException>(() => journal.Replay("Invoices"));
+        Assert.Throws<InvalidDataException>(() =>
+            journal.Append(Graph("r3", "public class C {}"), "r1"));
+    }
+
     private sealed class JournalDirectory : IDisposable
     {
         public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(),

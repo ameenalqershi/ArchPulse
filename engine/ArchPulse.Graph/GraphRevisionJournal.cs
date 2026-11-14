@@ -31,6 +31,19 @@ public sealed class GraphRevisionJournal
     public GraphSnapshot? Replay(string project) => ReadEvents(project).Snapshot;
 
     /// <summary>
+    /// Reconstruct an earlier revision from the validated event prefix. Events AFTER
+    /// the requested revision are intentionally not read, allowing recovery of a
+    /// valid older state if a newer event is corrupt. Use Replay() to audit the head.
+    /// Unknown revisions are null; the journal is never modified by a read.
+    /// </summary>
+    public GraphSnapshot? ReplayAt(string project, string revision)
+    {
+        if (string.IsNullOrWhiteSpace(revision))
+            throw new ArgumentException("Revision is required.", nameof(revision));
+        return ReadEvents(project, revision).Snapshot;
+    }
+
+    /// <summary>
     /// Append an immutable revision if expectedRevision matches the head. A retry of the
     /// exact same committed revision is idempotent; a conflicting revision fails closed.
     /// The writer lock is cross-process on a local filesystem (FileShare.None).
@@ -96,7 +109,7 @@ public sealed class GraphRevisionJournal
     }
 
     private (GraphSnapshot? Snapshot, long Sequence, string? Digest, string? LastPath)
-        ReadEvents(string project)
+        ReadEvents(string project, string? stopAtRevision = null)
     {
         if (string.IsNullOrWhiteSpace(project))
             throw new ArgumentException("Project is required.", nameof(project));
@@ -142,8 +155,12 @@ public sealed class GraphRevisionJournal
             GraphSnapshotStore.Validate(current);
             digest = envelope.Digest;
             lastPath = path;
+            if (stopAtRevision is not null &&
+                string.Equals(current.Revision, stopAtRevision, StringComparison.Ordinal))
+                return (current, sequence, digest, lastPath);
         }
-        return (current, sequence, digest, lastPath);
+        // No matching revision in the validated prefix: never substitute the head.
+        return (stopAtRevision is null ? current : null, sequence, digest, lastPath);
     }
 
     private static GraphSnapshot Apply(GraphSnapshot? previous, GraphJournalEvent evt)
