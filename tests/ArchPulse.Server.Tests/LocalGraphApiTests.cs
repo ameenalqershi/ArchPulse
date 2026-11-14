@@ -106,6 +106,8 @@ public sealed class LocalGraphApiTests
     [InlineData("identity")]
     [InlineData("invalid-source")]
     [InlineData("orphan")]
+    [InlineData("duplicate-root")]
+    [InlineData("duplicate-evidence")]
     public async Task CorruptPersistedGraphReturnsSanitized422ButOtherRevisionRemainsAvailable(
         string corruption)
     {
@@ -120,6 +122,10 @@ public sealed class LocalGraphApiTests
                 StringComparison.Ordinal),
             "orphan" => stored.Replace("\"ToSymbolId\": \"Billing.Contracts::M:Apply\"",
                 "\"ToSymbolId\": \"private-source-marker\"", StringComparison.Ordinal),
+            "duplicate-root" => stored.Replace("\"Project\": \"Billing\"",
+                "\"Project\": \"private-source-marker\", \"Project\": \"Billing\"", StringComparison.Ordinal),
+            "duplicate-evidence" => stored.Replace("\"Evidence\": {",
+                "\"Evidence\": { \"Revision\": \"private-source-marker\",", StringComparison.Ordinal),
             _ => throw new ArgumentOutOfRangeException(nameof(corruption))
         };
         Assert.NotEqual(stored, corrupted);
