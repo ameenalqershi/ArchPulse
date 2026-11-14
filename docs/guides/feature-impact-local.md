@@ -90,3 +90,15 @@ test selection/verification, use-case contracts, security risk scoring,
 cross-repository propagation, provenance attestation, reviewer approval and
 full negative-evidence modeling remain to be implemented. No full S05
 acceptance or production readiness is claimed.
+
+## Bounded multi-event reverse-index reuse — T025 (2026-11-14)
+
+A candidate impact report may have up to 500 structural events and up to 100,000 graph edges per revision. Previously each event rebuilt and sorted an entire reverse static `Calls` index for the same immutable snapshot. Index construction could repeat O(events × edges) work.
+
+`FeatureImpactAnalyzer.Assess` now builds the reverse static-call index for each immutable revision **lazily at most once per report**. Removed events continue using **only the FROM** snapshot; added events use **only the TO** snapshot. Candidate feature members are sorted once instead of repeatedly per event. All original provenance filters, deterministic output, existing event deduplication, traversal limits, and Unknown runtime status are preserved.
+
+Reverse-index **construction** is now bounded by at most two O(edges) scans, excluding snapshot validation, graph difference, per-event reverse traversal, and catalog/feature processing. This is an **algorithmic statement, not a measured production performance guarantee**.
+
+Regressions cover mixed source revisions with correct source-specific witness evidence and 120 newly added nodes plus 120 new `Calls` edges. The 240 events produce 121 distinct candidate signals under the pre-existing deduplication policy: all 120 call additions share the same feature, caller, kind and source span and are collapsed to a single candidate. `StructuralChangesExamined` still reports 240. Do not conflate examined source events with distinct impact signals.
+
+These remain proposed structural impacts, **not** measured execution, affected business behavior, Git patch analysis, or accepted T025/S05 architecture.

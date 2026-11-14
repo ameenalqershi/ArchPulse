@@ -143,6 +143,95 @@ public sealed class FeatureImpactAnalyzerTests
     }
 
     [Fact]
+    public void RemovedAndAddedCallsKeepTheirSeparateRevisionWitnesses()
+    {
+        var beforeEvidence = new SourceEvidence("before", "Before.cs", 2, 1, EvidenceKind.Static);
+        var afterEvidence = new SourceEvidence("after", "After.cs", 3, 1, EvidenceKind.Static);
+        var before = new GraphSnapshot("Mixed", "before",
+        [
+            new("entry", GraphNodeKind.Method, "Entry", null, beforeEvidence),
+            new("removed", GraphNodeKind.Method, "Removed", null, beforeEvidence)
+        ],
+        [
+            new("old-call", "entry", "removed", "Calls", beforeEvidence)
+        ], []);
+        var after = new GraphSnapshot("Mixed", "after",
+        [
+            new("entry", GraphNodeKind.Method, "Entry", null, afterEvidence),
+            new("added", GraphNodeKind.Method, "Added", null, afterEvidence)
+        ],
+        [
+            new("new-call", "entry", "added", "Calls", afterEvidence)
+        ], []);
+        var catalog = new FeatureCatalog(FeatureAtlas.Schema, "Mixed", "before",
+        [
+            new BusinessFeature("mixed", "Mixed", "Candidate", "Owner",
+                FeatureCriticality.P1, ["Entry"], ["Review"],
+                [new FeatureMembership("entry", "Proposed", EvidenceKind.Designed)])
+        ]);
+        var report = FeatureImpactAnalyzer.Assess(before, after, catalog);
+        Assert.Equal(4, report.StructuralChangesExamined);
+        Assert.Equal(4, report.Impacts.Count);
+        var removed = Assert.Single(report.Impacts, x =>
+            x.ChangeKind == StructuralChangeKind.NodeRemoved);
+        Assert.Equal("removed", removed.ChangedSymbolId);
+        var oldCall = Assert.Single(removed.StaticCallWitness);
+        Assert.Equal("old-call", oldCall.EdgeId);
+        Assert.Equal("before", oldCall.Evidence.Revision);
+        var added = Assert.Single(report.Impacts, x =>
+            x.ChangeKind == StructuralChangeKind.NodeAdded);
+        Assert.Equal("added", added.ChangedSymbolId);
+        var newCall = Assert.Single(added.StaticCallWitness);
+        Assert.Equal("new-call", newCall.EdgeId);
+        Assert.Equal("after", newCall.Evidence.Revision);
+        Assert.All(report.Impacts, x => Assert.Equal("Unknown", report.RuntimeStatus));
+    }
+
+    [Fact]
+    public void ManyIndependentChangesRemainCompleteAndDeterministic()
+    {
+        const int changed = 120;
+        var beforeEvidence = new SourceEvidence("v1", "Old.cs", 1, 1, EvidenceKind.Static);
+        var afterEvidence = new SourceEvidence("v2", "New.cs", 1, 1, EvidenceKind.Static);
+        var before = new GraphSnapshot("Wide", "v1",
+            [new("entry", GraphNodeKind.Method, "Entry", null, beforeEvidence)], [], []);
+        var addedNodes = Enumerable.Range(0, changed)
+            .Select(index => new GraphNode($"method:{index:000}", GraphNodeKind.Method,
+                $"Method {index}", null, afterEvidence)).ToArray();
+        var addedEdges = Enumerable.Range(0, changed)
+            .Select(index => new GraphEdge($"call:{index:000}", "entry",
+                $"method:{index:000}", "Calls", afterEvidence)).ToArray();
+        var after = new GraphSnapshot("Wide", "v2",
+            addedNodes.Reverse().Append(new GraphNode("entry", GraphNodeKind.Method,
+                "Entry", null, afterEvidence)).ToArray(),
+            addedEdges.Reverse().ToArray(), []);
+        var catalog = new FeatureCatalog(FeatureAtlas.Schema, "Wide", "v1",
+        [
+            new BusinessFeature("entry-feature", "Entry Feature", "Candidate", "Owner",
+                FeatureCriticality.P1, ["Entry"], ["Review"],
+                [new FeatureMembership("entry", "Proposed", EvidenceKind.Inferred)])
+        ]);
+
+        var one = FeatureImpactAnalyzer.Assess(before, after, catalog);
+        var two = FeatureImpactAnalyzer.Assess(before, after, catalog);
+        Assert.Equal(changed * 2, one.StructuralChangesExamined);
+        // The existing impact contract intentionally deduplicates change events
+        // with the same feature/member/changed-symbol/kind/source span. Here all
+        // CallAdded edges share the same caller and span, so they collapse to one
+        // candidate signal (while all 240 events are still examined).
+        Assert.Equal(changed + 1, one.Impacts.Count);
+        Assert.Equal(changed, one.Impacts.Count(x => x.ChangeKind == StructuralChangeKind.NodeAdded));
+        Assert.Single(one.Impacts, x => x.ChangeKind == StructuralChangeKind.CallAdded);
+        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(one),
+            System.Text.Json.JsonSerializer.Serialize(two));
+        Assert.All(one.Impacts, x =>
+        {
+            Assert.Equal("entry-feature", x.FeatureId);
+            Assert.All(x.StaticCallWitness, edge => Assert.Equal(EvidenceKind.Static, edge.Evidence.Kind));
+        });
+    }
+
+    [Fact]
     public void ReportIsDeterministicAndSharedMembersCanYieldSeparateFeatureCandidates()
     {
         var before = Graph("old");

@@ -82,24 +82,34 @@ public static class FeatureImpactAnalyzer
         var impacts = new List<FeatureImpactSignal>();
         var unique = new HashSet<(string Feature, string Member, string Changed,
             StructuralChangeKind Kind, string File, int Line, int Column)>();
+
+        // All change events come from one of two immutable, validated revisions.
+        // Build each reverse static-call index lazily at most once, instead of
+        // rebuilding O(edges) state for every independent delta event. Keep the
+        // two revisions separate: a removed edge must use BEFORE witnesses.
+        Dictionary<string, IReadOnlyList<GraphEdge>>? beforeReverse = null;
+        Dictionary<string, IReadOnlyList<GraphEdge>>? afterReverse = null;
+        var members = beforeCatalog.Features.OrderBy(f => f.Id, StringComparer.Ordinal)
+            .SelectMany(feature => feature.Members.OrderBy(m => m.SymbolId, StringComparer.Ordinal)
+                .Select(member => (feature.Id, member.SymbolId)))
+            .ToArray();
         foreach (var entry in events.OrderBy(x => x.Kind).ThenBy(x => x.Changed, StringComparer.Ordinal)
                      .ThenBy(x => x.Evidence.RelativeFile, StringComparer.Ordinal)
                      .ThenBy(x => x.Evidence.Line).ThenBy(x => x.Evidence.Column))
         {
-            // Each revision's call edges are indexed once per event. This avoids
-            // repeated quadratic path-finding over large shared feature catalogs.
-            var reverse = BuildReverseCallGraph(entry.Graph);
+            var reverse = ReferenceEquals(entry.Graph, before)
+                ? (beforeReverse ??= BuildReverseCallGraph(before))
+                : (afterReverse ??= BuildReverseCallGraph(after));
             var ancestors = ReversePaths(reverse, entry.Changed, maxCallHops);
-            foreach (var feature in beforeCatalog.Features.OrderBy(f => f.Id, StringComparer.Ordinal))
-            foreach (var member in feature.Members.OrderBy(m => m.SymbolId, StringComparer.Ordinal))
+            foreach (var (featureId, memberId) in members)
             {
-                if (!ancestors.TryGetValue(member.SymbolId, out var path)) continue;
-                var basis = member.SymbolId == entry.Changed
+                if (!ancestors.TryGetValue(memberId, out var path)) continue;
+                var basis = memberId == entry.Changed
                     ? FeatureImpactBasis.DirectCandidateMember : FeatureImpactBasis.StaticCallerPath;
-                if (!unique.Add((feature.Id, member.SymbolId, entry.Changed, entry.Kind,
+                if (!unique.Add((featureId, memberId, entry.Changed, entry.Kind,
                         entry.Evidence.RelativeFile, entry.Evidence.Line, entry.Evidence.Column)))
                     continue;
-                impacts.Add(new FeatureImpactSignal(feature.Id, member.SymbolId, entry.Changed,
+                impacts.Add(new FeatureImpactSignal(featureId, memberId, entry.Changed,
                     entry.Kind, basis, entry.Evidence, path,
                     basis == FeatureImpactBasis.DirectCandidateMember
                         ? "Candidate feature member structurally changed; review required."
