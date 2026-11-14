@@ -58,6 +58,62 @@ public static class GraphQueries
     }
 
     /// <summary>
+    /// Bounded exact-revision enumeration of canonical (single-parent) children.
+    /// Null parent selects graph roots; all results retain their source evidence.
+    /// A scan-based prototype, not a precomputed hierarchy index or ViewScope.
+    /// </summary>
+    public static GraphChildPage ChildrenPage(
+        GraphSnapshot snapshot, string? parentSymbolId = null,
+        int pageSize = 50, string? afterSymbolId = null)
+    {
+        if (pageSize is < 1 or > 100)
+            throw new ArgumentOutOfRangeException(nameof(pageSize), "Page size must be 1..100.");
+        if (parentSymbolId is not null &&
+            (string.IsNullOrWhiteSpace(parentSymbolId) || parentSymbolId.Length > 2048))
+            throw new ArgumentException("An exact bounded parent SymbolId is required.",
+                nameof(parentSymbolId));
+        if (afterSymbolId is not null &&
+            (string.IsNullOrWhiteSpace(afterSymbolId) || afterSymbolId.Length > 2048))
+            throw new ArgumentException("An exact bounded child cursor is required.",
+                nameof(afterSymbolId));
+
+        GraphSnapshotStore.Validate(snapshot);
+        if (parentSymbolId is not null &&
+            !snapshot.Nodes.Any(node => node.SymbolId == parentSymbolId))
+            throw new KeyNotFoundException("Parent symbol is not in this exact graph.");
+
+        bool cursorPresent = afterSymbolId is null;
+        var selected = new SortedSet<GraphNode>(Comparer<GraphNode>.Create(
+            (a, b) => StringComparer.Ordinal.Compare(a.SymbolId, b.SymbolId)));
+        foreach (var node in snapshot.Nodes)
+        {
+            if (!string.Equals(node.ParentSymbolId, parentSymbolId, StringComparison.Ordinal))
+                continue;
+            if (string.Equals(node.SymbolId, afterSymbolId, StringComparison.Ordinal))
+            {
+                cursorPresent = true;
+                continue;
+            }
+            if (afterSymbolId is not null &&
+                StringComparer.Ordinal.Compare(node.SymbolId, afterSymbolId) <= 0)
+                continue;
+            selected.Add(node);
+            if (selected.Count > pageSize + 1)
+                selected.Remove(selected.Max!);
+        }
+
+        if (!cursorPresent)
+            throw new ArgumentException("Cursor is not a direct child of the selected parent.",
+                nameof(afterSymbolId));
+
+        bool hasMore = selected.Count > pageSize;
+        var page = selected.Take(pageSize).ToArray();
+        return new GraphChildPage(GraphChildPage.ContractSchema, snapshot.Project,
+            snapshot.Revision, parentSymbolId, pageSize, page, hasMore,
+            hasMore ? page[^1].SymbolId : null);
+    }
+
+    /// <summary>
     /// Shortest path through source-proven static or independently verified directional edges.
     /// This is not a measured runtime call trace.
     /// </summary>
@@ -108,6 +164,17 @@ public static class GraphQueries
         }
         return [];
     }
+}
+
+/// <summary>
+/// Direct single-parent ownership only, with a root scope when ParentSymbolId is null.
+/// Cursor is an unsigned exact SymbolId, not an authorization token.
+/// </summary>
+public sealed record GraphChildPage(
+    string Schema, string Project, string Revision, string? ParentSymbolId,
+    int PageSize, IReadOnlyList<GraphNode> Nodes, bool HasMore, string? NextAfterSymbolId)
+{
+    public const string ContractSchema = "archpulse.graph-children-page/v1";
 }
 
 /// <summary>
