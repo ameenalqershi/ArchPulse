@@ -206,6 +206,151 @@ public sealed class GraphRevisionJournalTests
             journal.Append(Graph("r3", "public class C {}"), "r1"));
     }
 
+
+    [Fact]
+    public void CheckpointCanReplayLaterDeltasWithExactGraphAndProvenance()
+    {
+        using var temp = new JournalDirectory();
+        var journal = new GraphRevisionJournal(temp.Path);
+        journal.Append(Graph("r1", "public class A {}"), null);
+        journal.Append(Graph("r2", "public class A { public int Two() => 2; }"), "r1");
+        var checkpoint = journal.CreateCheckpoint("Invoices");
+        var latest = Graph("r3", "public class A { public int Two() => 3; public void Three() {} }");
+        journal.Append(latest, "r2");
+        var restored = Assert.IsType<GraphSnapshot>(
+            new GraphRevisionJournal(temp.Path).ReplayFromLatestCheckpoint("Invoices"));
+        var fullyReplayed = Assert.IsType<GraphSnapshot>(journal.Replay("Invoices"));
+        Assert.Equal("r2", checkpoint.Revision);
+        Assert.Equal(2, checkpoint.Sequence);
+        Assert.Equal(latest.Nodes.OrderBy(n => n.SymbolId), restored.Nodes);
+        Assert.Equal(latest.Edges.OrderBy(e => e.EdgeId), restored.Edges);
+        Assert.Equal(fullyReplayed.Nodes.OrderBy(n => n.SymbolId),
+            restored.Nodes.OrderBy(n => n.SymbolId));
+        Assert.Equal(fullyReplayed.Edges.OrderBy(e => e.EdgeId),
+            restored.Edges.OrderBy(e => e.EdgeId));
+        Assert.Equal(fullyReplayed.Diagnostics, restored.Diagnostics);
+        Assert.All(restored.Nodes, node => Assert.Equal("r3", node.Evidence.Revision));
+    }
+
+    [Fact]
+    public void CheckpointIsImmutableIdempotentAndNewerCheckpointBecomesLatest()
+    {
+        using var temp = new JournalDirectory();
+        var journal = new GraphRevisionJournal(temp.Path);
+        var first = journal.Append(Graph("r1", "public class A {}"), null);
+        var cp1 = journal.CreateCheckpoint("Invoices");
+        Assert.Equal(first.Digest, cp1.EventDigest);
+        Assert.Equal(cp1, journal.CreateCheckpoint("Invoices"));
+        journal.Append(Graph("r2", "public class B {}"), "r1");
+        var cp2 = journal.CreateCheckpoint("Invoices");
+        Assert.Equal(2, cp2.Sequence);
+        Assert.NotEqual(cp1.CheckpointPath, cp2.CheckpointPath);
+        Assert.Equal("r2", journal.ReplayFromLatestCheckpoint("Invoices")!.Revision);
+        Assert.Equal(2, Directory.GetFiles(System.IO.Path.GetDirectoryName(
+            cp2.CheckpointPath)!, "*.checkpoint.json").Length);
+    }
+
+    [Fact]
+    public void CheckpointReadRejectsModifiedSnapshotAndDoesNotFallBackSilently()
+    {
+        using var temp = new JournalDirectory();
+        var journal = new GraphRevisionJournal(temp.Path);
+        journal.Append(Graph("r1", "public class A {}"), null);
+        var cp = journal.CreateCheckpoint("Invoices");
+        var content = File.ReadAllText(cp.CheckpointPath);
+        Assert.Contains("\"SnapshotDigest\":", content, StringComparison.Ordinal);
+        File.WriteAllText(cp.CheckpointPath,
+            content.Replace("\"SnapshotDigest\":\"", "\"SnapshotDigest\":\"bad",
+                StringComparison.Ordinal));
+        Assert.Throws<InvalidDataException>(
+            () => journal.ReplayFromLatestCheckpoint("Invoices"));
+        Assert.Throws<InvalidDataException>(() => journal.CreateCheckpoint("Invoices"));
+        Assert.Equal("r1", journal.Replay("Invoices")!.Revision);
+    }
+
+    [Fact]
+    public void CheckpointRejectsDamagedAnchorEvenWhenSnapshotBytesAreIntact()
+    {
+        using var temp = new JournalDirectory();
+        var journal = new GraphRevisionJournal(temp.Path);
+        journal.Append(Graph("r1", "public class A {}"), null);
+        var anchor = journal.Append(Graph("r2", "public class B {}"), "r1");
+        journal.CreateCheckpoint("Invoices");
+        File.WriteAllText(anchor.EventPath, "{broken-anchor");
+        Assert.Throws<InvalidDataException>(
+            () => journal.ReplayFromLatestCheckpoint("Invoices"));
+    }
+
+    [Fact]
+    public void CheckpointReadRejectsMissingHistoricalEventFilenameAndMissingTail()
+    {
+        using var temp = new JournalDirectory();
+        var journal = new GraphRevisionJournal(temp.Path);
+        var earliest = journal.Append(Graph("r1", "public class A {}"), null);
+        journal.Append(Graph("r2", "public class B {}"), "r1");
+        journal.CreateCheckpoint("Invoices");
+        journal.Append(Graph("r3", "public class C {}"), "r2");
+        File.Delete(earliest.EventPath);
+        Assert.Throws<InvalidDataException>(
+            () => journal.ReplayFromLatestCheckpoint("Invoices"));
+    }
+
+    [Fact]
+    public void CheckpointReadRejectsCorruptedTailAndAppendNeverUsesUnverifiedCheckpoint()
+    {
+        using var temp = new JournalDirectory();
+        var journal = new GraphRevisionJournal(temp.Path);
+        journal.Append(Graph("r1", "public class A {}"), null);
+        journal.CreateCheckpoint("Invoices");
+        var latest = journal.Append(Graph("r2", "public class B {}"), "r1");
+        File.WriteAllText(latest.EventPath, "{bad-tail");
+        Assert.Throws<InvalidDataException>(() => journal.ReplayFromLatestCheckpoint("Invoices"));
+        Assert.Throws<InvalidDataException>(
+            () => journal.Append(Graph("r3", "public class C {}"), "r2"));
+    }
+
+    [Fact]
+    public void CheckpointFastPathCanReadLocalAnchorWhenOlderPayloadIsCorruptButFullAuditFails()
+    {
+        using var temp = new JournalDirectory();
+        var journal = new GraphRevisionJournal(temp.Path);
+        var first = journal.Append(Graph("r1", "public class A {}"), null);
+        journal.Append(Graph("r2", "public class B {}"), "r1");
+        journal.CreateCheckpoint("Invoices");
+        journal.Append(Graph("r3", "public class C {}"), "r2");
+        File.WriteAllText(first.EventPath, "{corrupted-pre-checkpoint-event");
+        // A checkpoint is a *local trust boundary*, not proof of the original
+        // earlier event contents or a substitute for the full replay audit.
+        Assert.Equal("r3", journal.ReplayFromLatestCheckpoint("Invoices")!.Revision);
+        Assert.Throws<InvalidDataException>(() => journal.Replay("Invoices"));
+        Assert.Throws<InvalidDataException>(() => journal.CreateCheckpoint("Invoices"));
+    }
+
+    [Fact]
+    public void CheckpointReadFallsBackToFullReplayWhenNoCheckpointExists()
+    {
+        using var temp = new JournalDirectory();
+        var journal = new GraphRevisionJournal(temp.Path);
+        Assert.Null(journal.ReplayFromLatestCheckpoint("Invoices"));
+        Assert.Throws<FileNotFoundException>(() => journal.CreateCheckpoint("Invoices"));
+        journal.Append(Graph("r1", "public class A {}"), null);
+        Assert.Equal(journal.Replay("Invoices")!.Nodes.OrderBy(n => n.SymbolId),
+            journal.ReplayFromLatestCheckpoint("Invoices")!.Nodes.OrderBy(n => n.SymbolId));
+    }
+
+    [Fact]
+    public void CheckpointIgnoresAbandonedTemporaryWritesWithoutPublishingPartialState()
+    {
+        using var temp = new JournalDirectory();
+        var journal = new GraphRevisionJournal(temp.Path);
+        var receipt = journal.Append(Graph("r1", "public class A {}"), null);
+        File.WriteAllText(System.IO.Path.Combine(
+            System.IO.Path.GetDirectoryName(receipt.EventPath)!, ".archpulse-orphan.tmp"), "{");
+        var checkpoint = journal.CreateCheckpoint("Invoices");
+        Assert.True(File.Exists(checkpoint.CheckpointPath));
+        Assert.Equal("r1", journal.ReplayFromLatestCheckpoint("Invoices")!.Revision);
+    }
+
     private sealed class JournalDirectory : IDisposable
     {
         public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(),

@@ -51,6 +51,36 @@ trusted CLI journal. **Not an approved S02 architecture decision**;
 evaluate checkpoint/compaction, fsync directory semantics, trusted identity
 and storage attack model before production or remote activation.
 
+## Additive read-side checkpoint experiment (T010 partial)
+
+Alternative A: keep full validation for every read. This detects alterations
+through the complete event history but reads and projects all events.
+
+```mermaid
+flowchart LR
+    Reader[Full replay] --> Events[All committed events]
+    Events --> Validate[Validate and project entire chain]
+```
+
+Alternative B: explicitly opt into a locally trusted checkpoint for faster
+reads, while preserving full replay for security-sensitive validation:
+
+```mermaid
+flowchart LR
+    Reader[Checkpoint replay] --> CP[Validate checkpoint snapshot and anchor]
+    CP --> Tail[Validate post-checkpoint events]
+    Tail --> Graph[Latest projected graph]
+    Auditor[Full replay] --> All[Entire event history]
+```
+
+Only alternative B is implemented as a **separate opt-in read path**.
+The checkpoint is fully validated at creation, append-only, and content
+hashed, but is not authenticated and cannot establish that older historical
+event payloads were not altered after checkpoint creation. The source of
+truth remains the complete journal; Append still replays it fully. No
+compaction or garbage collection was approved or implemented. Human
+architecture and persistence/security review remains pending.
+
 ## Migration, rollback and acceptance
 
 No migration: existing snapshot JSON, API and MCP are unchanged.

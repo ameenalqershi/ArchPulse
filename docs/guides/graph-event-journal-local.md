@@ -28,6 +28,12 @@ dotnet run --project apps/cli/ArchPulse.Cli -c Release --no-build -- \
 # View the prior exact revision without rebuilding or changing the HEAD:
 dotnet run --project apps/cli/ArchPulse.Cli -c Release --no-build -- \
   graph-journal-show Billing --journal /tmp/ap-event-journal --revision demo-r1
+# After fully validating the committed event chain, create an immutable local checkpoint:
+dotnet run --project apps/cli/ArchPulse.Cli -c Release --no-build -- \
+  graph-journal-checkpoint Billing --journal /tmp/ap-event-journal
+# Explicit checkpoint-anchored read skips prior event payload verification:
+dotnet run --project apps/cli/ArchPulse.Cli -c Release --no-build -- \
+  graph-journal-replay-checkpoint Billing --journal /tmp/ap-event-journal
 ```
 
 The second example requires that `demo-r2` was already indexed; a missing
@@ -60,6 +66,20 @@ trusted repositories, never arbitrary user-submitted MSBuild projects.
   without an external durable checkpoint; this is a known limitation.
 - Identity and event hashes provide **accidental-tamper detection**, not
   authentication against a local actor able to rewrite every event and digest.
+- Optional checkpoint files are `<sequence>.checkpoint.json` containing a
+  complete validated projection, event-chain anchor digest and snapshot digest.
+  They are finalized by a flushed temporary file + same-directory atomic
+  rename and cannot replace existing differing content.
+- `CreateCheckpoint()` first fully validates the journal and takes the same
+  local writer lock as Append. `ReplayFromLatestCheckpoint()` verifies the
+  newest checkpoint identity, snapshot digest, canonical Graph validity and
+  exact anchor event digest; validates event filenames and all subsequent
+  event payloads. A corrupt checkpoint **fails** rather than using an older
+  checkpoint silently.
+- The checkpoint is a **local trust boundary**, NOT proof that unchanged
+  pre-checkpoint event bytes remain intact. A full `Replay()` still audits
+  every committed event; `Append()` also always replays the full history
+  before making any mutation. No authenticated or signed checkpoints.
 - No compaction, checkpoint rotation, bounded historical query cost,
   reader isolation guarantee beyond immutable renamed events, directory fsync,
   network filesystem guarantee, runtime observation, multi-host lease, or
