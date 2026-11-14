@@ -351,6 +351,32 @@ public sealed class GraphRevisionJournalTests
         Assert.Equal("r1", journal.ReplayFromLatestCheckpoint("Invoices")!.Revision);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void DuplicateEventPropertyNamesAreRejectedBeforeDigestValidation(bool nestedNode)
+    {
+        using var temp = new JournalDirectory();
+        var journal = new GraphRevisionJournal(temp.Path);
+        var receipt = journal.Append(Graph("r1", "public class A {}"), null);
+        string original = File.ReadAllText(receipt.EventPath);
+        string target = nestedNode
+            ? "\"UpsertNodes\":[{\"SymbolId\":"
+            : "\"Project\":\"Invoices\",\"Revision\":";
+        string replacement = nestedNode
+            ? "\"UpsertNodes\":[{\"SymbolId\":\"spoofed\",\"SymbolId\":"
+            : "\"Project\":\"Invoices\",\"Revision\":\"spoofed\",\"Revision\":";
+        Assert.Contains(target, original, StringComparison.Ordinal);
+        File.WriteAllText(receipt.EventPath,
+            original.Replace(target, replacement, StringComparison.Ordinal));
+
+        // Last-value-wins JSON deserialization preserves the original digest,
+        // but duplicated properties make the on-disk event ambiguous.
+        Assert.Throws<InvalidDataException>(() => journal.Replay("Invoices"));
+        Assert.Throws<InvalidDataException>(() =>
+            journal.Append(Graph("r2", "public class B {}"), "r1"));
+    }
+
     private sealed class JournalDirectory : IDisposable
     {
         public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
