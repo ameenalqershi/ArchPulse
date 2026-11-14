@@ -340,6 +340,29 @@ app.MapGet("/api/graphs/{project}/{revision}/neighbors",
         catch (KeyNotFoundException) { return Results.NotFound(); }
     });
 
+// T011/S02 local-only canonical parent -> children projection for graph drilldown.
+// Null parent returns roots; this is not authenticated S27 ViewScope.
+app.MapGet("/api/graphs/{project}/{revision}/children-page",
+    (GraphSnapshotStore store, string project, string revision,
+     string? parentSymbolId, int? pageSize, string? afterSymbolId) =>
+    {
+        if ((parentSymbolId is not null &&
+             (string.IsNullOrWhiteSpace(parentSymbolId) || parentSymbolId.Length > 2048)) ||
+            (pageSize.HasValue && pageSize.Value is < 1 or > 100) ||
+            (afterSymbolId is not null &&
+             (string.IsNullOrWhiteSpace(afterSymbolId) || afterSymbolId.Length > 2048)))
+            return Results.BadRequest();
+        var graph = store.Load(project, revision);
+        if (graph is null) return Results.NotFound();
+        try
+        {
+            return Results.Ok(GraphQueries.ChildrenPage(graph, parentSymbolId,
+                pageSize ?? 50, afterSymbolId));
+        }
+        catch (KeyNotFoundException) { return Results.NotFound(); }
+        catch (ArgumentException) { return Results.BadRequest(); }
+    });
+
 // T011/S02 first bounded keyset query. Immutable exact-revision, read-only,
 // scan-based prototype; not full permission-scoped T121 pagination.
 app.MapGet("/api/graphs/{project}/{revision}/neighbors-page",
