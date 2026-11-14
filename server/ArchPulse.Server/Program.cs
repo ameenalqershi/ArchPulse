@@ -340,6 +340,27 @@ app.MapGet("/api/graphs/{project}/{revision}/neighbors",
         catch (KeyNotFoundException) { return Results.NotFound(); }
     });
 
+// T119/S27 partial, local read-only canonical ownership facts, not
+// permission-bearing ViewScope or an authorization decision.
+app.MapGet("/api/graphs/{project}/{revision}/scope-topology",
+    (GraphSnapshotStore store, string project, string revision, string symbolId) =>
+    {
+        if (string.IsNullOrWhiteSpace(symbolId) || symbolId.Length > 2048)
+            return Results.BadRequest();
+        var graph = store.Load(project, revision);
+        if (graph is null) return Results.NotFound();
+        try
+        {
+            return Results.Ok(new CanonicalHierarchyTopology(graph).Describe(symbolId));
+        }
+        catch (KeyNotFoundException) { return Results.NotFound(); }
+        catch (InvalidOperationException)
+        {
+            return Results.Problem("Canonical graph scope exceeds local breadcrumb bounds.",
+                statusCode: 413);
+        }
+    });
+
 // T011/S02 local-only canonical parent -> children projection for graph drilldown.
 // Null parent returns roots; this is not authenticated S27 ViewScope.
 app.MapGet("/api/graphs/{project}/{revision}/children-page",
