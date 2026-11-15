@@ -207,8 +207,9 @@ public sealed class GraphRevisionJournal
             GraphJournalEnvelope envelope;
             try
             {
-                envelope = JsonSerializer.Deserialize<GraphJournalEnvelope>(
-                    File.ReadAllBytes(path), JsonOptions)
+                using var document = JsonDocument.Parse(File.ReadAllBytes(path));
+                RejectDuplicateProperties(document.RootElement);
+                envelope = document.RootElement.Deserialize<GraphJournalEnvelope>(JsonOptions)
                     ?? throw new InvalidDataException("Empty graph journal event.");
             }
             catch (JsonException ex)
@@ -241,6 +242,28 @@ public sealed class GraphRevisionJournal
             throw new InvalidDataException("Checkpoint refers to missing committed journal events.");
         // No matching revision in the validated prefix: never substitute the head.
         return (stopAtRevision is null ? current : null, sequence, digest, lastPath);
+    }
+
+    // Verify the raw JSON before deserialization: last-value-wins parsing can
+    // erase duplicate names without changing the digest of the materialized event.
+    private static void RejectDuplicateProperties(JsonElement value)
+    {
+        if (value.ValueKind == JsonValueKind.Object)
+        {
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (JsonProperty property in value.EnumerateObject())
+            {
+                if (!seen.Add(property.Name))
+                    throw new InvalidDataException(
+                        "Graph journal JSON contains duplicate object properties.");
+                RejectDuplicateProperties(property.Value);
+            }
+        }
+        else if (value.ValueKind == JsonValueKind.Array)
+        {
+            foreach (JsonElement item in value.EnumerateArray())
+                RejectDuplicateProperties(item);
+        }
     }
 
     private static GraphSnapshot Apply(GraphSnapshot? previous, GraphJournalEvent evt)
@@ -282,8 +305,9 @@ public sealed class GraphRevisionJournal
         GraphJournalCheckpoint checkpoint;
         try
         {
-            checkpoint = JsonSerializer.Deserialize<GraphJournalCheckpoint>(
-                File.ReadAllBytes(path), JsonOptions)
+            using var document = JsonDocument.Parse(File.ReadAllBytes(path));
+            RejectDuplicateProperties(document.RootElement);
+            checkpoint = document.RootElement.Deserialize<GraphJournalCheckpoint>(JsonOptions)
                 ?? throw new InvalidDataException("Empty graph journal checkpoint.");
         }
         catch (JsonException ex)
@@ -316,8 +340,9 @@ public sealed class GraphRevisionJournal
         GraphJournalEnvelope anchor;
         try
         {
-            anchor = JsonSerializer.Deserialize<GraphJournalEnvelope>(
-                File.ReadAllBytes(anchorPath), JsonOptions)
+            using var document = JsonDocument.Parse(File.ReadAllBytes(anchorPath));
+            RejectDuplicateProperties(document.RootElement);
+            anchor = document.RootElement.Deserialize<GraphJournalEnvelope>(JsonOptions)
                 ?? throw new InvalidDataException("Empty graph checkpoint anchor event.");
         }
         catch (JsonException ex)
