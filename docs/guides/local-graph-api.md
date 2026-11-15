@@ -138,6 +138,9 @@ checkout. S02/T011 acceptance and human review remain open.
 
 ## Fail-closed locally stored graph corruption — T012/S02 partial (2026-11-14)
 
+The snapshot reader now rejects duplicate JSON object property names at any nesting depth **before** deserializing stored graph identity, nodes, edges and source evidence. Ambiguous files are rejected with a generic InvalidDataException (mapped to the existing sanitized 422 response on local graph routes); this is structural consistency checking, not a signature, authentication, or trusted provenance attestation.
+
+
 A stored GraphSnapshot might have malformed JSON, a mismatched project/revision,
 or invalid graph identity, parent relationship or provenance. On local read
 routes, these cases now produce **HTTP 422 Unprocessable Entity** with a

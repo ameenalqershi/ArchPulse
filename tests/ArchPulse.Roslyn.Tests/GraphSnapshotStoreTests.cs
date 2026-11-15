@@ -50,6 +50,34 @@ public sealed class GraphSnapshotStoreTests
         Assert.Null(store.Load("Invoices", "unindexed"));
     }
 
+    [Theory]
+    [InlineData("root")]
+    [InlineData("node")]
+    [InlineData("evidence")]
+    [InlineData("edge")]
+    public void RejectsDuplicateJsonKeysBeforeAcceptingPersistedSourceEvidence(string location)
+    {
+        using var temp = new TempDirectory();
+        var store = new GraphSnapshotStore(temp.Path);
+        var file = store.Save(MakeGraph(
+            "public class A { public int One() => Two(); public int Two() => 2; }", "rev1"));
+        var original = File.ReadAllText(file);
+        var (target, duplicate) = location switch
+        {
+            "root" => ("\"Project\": \"Invoices\"", "\"Project\": \"spoofed\", \"Project\": \"Invoices\""),
+            "node" => ("\"Label\":", "\"Label\": \"spoofed\", \"Label\":"),
+            "evidence" => ("\"Evidence\": {", "\"Evidence\": { \"Revision\": \"spoofed\","),
+            "edge" => ("\"Relation\": \"Calls\"", "\"Relation\": \"DependsOn\", \"Relation\": \"Calls\""),
+            _ => throw new ArgumentOutOfRangeException(nameof(location))
+        };
+        Assert.Contains(target, original, StringComparison.Ordinal);
+        File.WriteAllText(file, original.Replace(target, duplicate, StringComparison.Ordinal));
+
+        // Last-value-wins deserialization used to silently accept this
+        // ambiguous evidence while resolving the original values.
+        Assert.Throws<InvalidDataException>(() => store.Load("Invoices", "rev1"));
+    }
+
     [Fact]
     public void RejectsChangingImmutableSnapshotInSameRevision()
     {
