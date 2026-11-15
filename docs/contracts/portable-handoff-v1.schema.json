@@ -1,0 +1,313 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ArchPulse portable handoff v1 — experimental, non-authoritative",
+  "description": "Structural interchange; the .NET reader enforces additional checks. No identity or external-effect authentication.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/task"
+    },
+    {
+      "$ref": "#/$defs/capabilities"
+    },
+    {
+      "$ref": "#/$defs/approval"
+    },
+    {
+      "$ref": "#/$defs/effect"
+    }
+  ],
+  "$defs": {
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "taskId",
+        "goal",
+        "repository",
+        "baseCommit",
+        "workingBranch",
+        "workspaceAlias",
+        "requirementIds",
+        "acceptanceCriteria",
+        "requiredCapabilities",
+        "allowedTools"
+      ],
+      "properties": {
+        "schema": {
+          "const": "archpulse.task-envelope/v1"
+        },
+        "taskId": {
+          "type": "string",
+          "pattern": "^T[0-9]{3}$"
+        },
+        "goal": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "repository": {
+          "type": "string",
+          "pattern": "^https://github[.]com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+        },
+        "baseCommit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "workingBranch": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "workspaceAlias": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$"
+        },
+        "requirementIds": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^R-[A-Za-z0-9_.-]+$"
+          }
+        },
+        "acceptanceCriteria": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          }
+        },
+        "requiredCapabilities": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9._-]{0,79}$"
+          }
+        },
+        "allowedTools": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9._-]{0,79}$"
+          }
+        }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "agentId",
+        "capabilities"
+      ],
+      "properties": {
+        "schema": {
+          "const": "archpulse.capability-manifest/v1"
+        },
+        "agentId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$"
+        },
+        "capabilities": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9._-]{0,79}$"
+          }
+        }
+      }
+    },
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "approvalId",
+        "taskId",
+        "commit",
+        "decision"
+      ],
+      "properties": {
+        "schema": {
+          "const": "archpulse.approval-receipt/v1"
+        },
+        "approvalId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$"
+        },
+        "taskId": {
+          "type": "string",
+          "pattern": "^T[0-9]{3}$"
+        },
+        "commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "decision": {
+          "enum": [
+            "Pending",
+            "Granted",
+            "Denied",
+            "Revoked"
+          ]
+        },
+        "assertedBy": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "evidenceReference": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 256
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "decision": {
+                "const": "Granted"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "assertedBy",
+              "evidenceReference"
+            ],
+            "properties": {
+              "assertedBy": {
+                "type": "string",
+                "minLength": 1
+              },
+              "evidenceReference": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "effect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "taskId",
+        "action",
+        "idempotencyKey",
+        "state"
+      ],
+      "properties": {
+        "schema": {
+          "const": "archpulse.external-effect-receipt/v1"
+        },
+        "taskId": {
+          "type": "string",
+          "pattern": "^T[0-9]{3}$"
+        },
+        "action": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9._-]{0,79}$"
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$"
+        },
+        "state": {
+          "enum": [
+            "Planned",
+            "Succeeded",
+            "Failed",
+            "Unknown"
+          ]
+        },
+        "receiptSha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "reconciliationStep": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 1024
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "Succeeded"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "receiptSha256"
+            ],
+            "properties": {
+              "receiptSha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "Unknown"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "reconciliationStep"
+            ],
+            "properties": {
+              "reconciliationStep": {
+                "type": "string",
+                "minLength": 1
+              },
+              "receiptSha256": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
