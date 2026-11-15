@@ -127,6 +127,44 @@ public sealed class NuGetLicenseAuditorTests
         Assert.Equal(2, Assert.Single(result.Packages).UsedBy.Count);
     }
 
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void DuplicateLockfilePropertiesCannotBeSilentlyOverridden(bool nested)
+    {
+        using var data = new Fixture();
+        data.AddPackage("fixture.one", "1.2.3", "expression", "MIT");
+        string file = Path.Combine(data.Repo, "packages.lock.json");
+        string content = File.ReadAllText(file);
+        string target = nested ? "\"resolved\":\"1.2.3\"" : "\"dependencies\":";
+        string replacement = nested
+            ? "\"resolved\":\"0.0.0\",\"resolved\":\"1.2.3\""
+            : "\"dependencies\":{},\"dependencies\":";
+        Assert.Contains(target, content, StringComparison.Ordinal);
+        File.WriteAllText(file, content.Replace(target, replacement, StringComparison.Ordinal));
+
+        Assert.Throws<InvalidDataException>(() => data.Audit());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void DuplicatePolicyPropertiesCannotExpandAllowedLicenses(bool mixedCase)
+    {
+        using var data = new Fixture();
+        data.AddPackage("fixture.one", "1.2.3", "expression", "MIT");
+        string content = File.ReadAllText(data.Policy);
+        string target = "\"acceptedSpdxExpressions\":";
+        string replacement = (mixedCase
+            ? "\"AcceptedSpdxExpressions\":[\"GPL-3.0-only\"],"
+            : "\"acceptedSpdxExpressions\":[\"GPL-3.0-only\"],") + target;
+        Assert.Contains(target, content, StringComparison.Ordinal);
+        File.WriteAllText(data.Policy, content.Replace(target, replacement, StringComparison.Ordinal));
+
+        Assert.Throws<InvalidDataException>(() => data.Audit());
+    }
+
     private sealed class Fixture : IDisposable
     {
         private readonly string _temp = Path.Combine(Path.GetTempPath(),
@@ -202,8 +240,13 @@ public sealed class NuGetLicenseAuditorTests
                 {
                     ["net10.0"] = new Dictionary<string, object>
                     {
-                        [package] = new { type = "Direct", requested = $"[{version}, )",
-                            resolved = version, contentHash = "test" }
+                        [package] = new
+                        {
+                            type = "Direct",
+                            requested = $"[{version}, )",
+                            resolved = version,
+                            contentHash = "test"
+                        }
                     }
                 }
             }));
