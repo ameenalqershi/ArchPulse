@@ -34,9 +34,14 @@ public static class ArchitectureGuardian
         var rules = policies.ToArray();
         var now = evaluationTime ?? DateTimeOffset.UtcNow;
         var result = new List<ArchitectureFinding>();
-        var projectIds = snapshot.Nodes.Where(n => n.Kind == GraphNodeKind.Project)
-            .Select(n => (Id: n.SymbolId, Name: n.Label)).ToArray();
-        var projectNames = projectIds.Select(p => p.Name).ToHashSet(StringComparer.Ordinal);
+
+        // Project labels select a policy scope only when the label identifies
+        // exactly one canonical project node in this graph revision.
+        var projectNameCounts = snapshot.Nodes
+            .Where(node => node.Kind == GraphNodeKind.Project && !string.IsNullOrWhiteSpace(node.Label))
+            .GroupBy(node => node.Label, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal);
+        var owners = BuildProjectOwnerIndex(snapshot);
 
         foreach (var rule in rules.Where(r => r.Enabled))
         {
@@ -44,18 +49,26 @@ public static class ArchitectureGuardian
                 || string.IsNullOrWhiteSpace(rule.FromProject) || string.IsNullOrWhiteSpace(rule.ToProject)
                 || string.IsNullOrWhiteSpace(rule.Relation))
                 throw new ArgumentException("Policy ID, version, project names and relation are required.");
-            if (!projectNames.Contains(rule.FromProject) || !projectNames.Contains(rule.ToProject))
+            if (!projectNameCounts.TryGetValue(rule.FromProject, out int fromCount)
+                || !projectNameCounts.TryGetValue(rule.ToProject, out int toCount))
             {
                 result.Add(new ArchitectureFinding(rule.Id, rule.Version, rule.Severity,
                     RuleOutcome.NotEvaluated, null, null, null, null,
                     "One or both projects are absent from this revision; rule cannot be evaluated."));
                 continue;
             }
+            if (fromCount != 1 || toCount != 1)
+            {
+                result.Add(new ArchitectureFinding(rule.Id, rule.Version, rule.Severity,
+                    RuleOutcome.NotEvaluated, null, null, null, null,
+                    "One or both project names are ambiguous in this revision; rule cannot be evaluated."));
+                continue;
+            }
 
             var matches = snapshot.Edges.Where(edge =>
                 edge.Relation == rule.Relation
-                && IsOwnedBy(edge.FromSymbolId, rule.FromProject)
-                && IsOwnedBy(edge.ToSymbolId, rule.ToProject)).ToArray();
+                && string.Equals(owners[edge.FromSymbolId], rule.FromProject, StringComparison.Ordinal)
+                && string.Equals(owners[edge.ToSymbolId], rule.ToProject, StringComparison.Ordinal)).ToArray();
 
             if (matches.Length == 0)
             {
@@ -96,7 +109,43 @@ public static class ArchitectureGuardian
             .ThenBy(f => f.EdgeId, StringComparer.Ordinal).ToArray();
     }
 
-    private static bool IsOwnedBy(string symbolId, string projectName) =>
-        symbolId == $"project:{projectName}" ||
-        symbolId.StartsWith(projectName + "::", StringComparison.Ordinal);
+    // Canonical hierarchy, not symbol-ID spelling, determines a relation's
+    // owning project. Resolve each parent chain once: O(nodes), no recursion.
+    // Validate() already forbids orphan parents and ownership cycles.
+    private static IReadOnlyDictionary<string, string?> BuildProjectOwnerIndex(GraphSnapshot snapshot)
+    {
+        var nodes = snapshot.Nodes.ToDictionary(node => node.SymbolId, StringComparer.Ordinal);
+        var owners = new Dictionary<string, string?>(StringComparer.Ordinal);
+        var chain = new List<string>();
+
+        foreach (var node in snapshot.Nodes)
+        {
+            if (owners.ContainsKey(node.SymbolId)) continue;
+            var cursor = node;
+            string? project;
+            while (true)
+            {
+                if (owners.TryGetValue(cursor.SymbolId, out project))
+                    break;
+                if (cursor.Kind == GraphNodeKind.Project)
+                {
+                    project = cursor.Label;
+                    owners[cursor.SymbolId] = project;
+                    break;
+                }
+
+                chain.Add(cursor.SymbolId);
+                if (cursor.ParentSymbolId is null)
+                {
+                    project = null;
+                    break;
+                }
+                cursor = nodes[cursor.ParentSymbolId];
+            }
+            foreach (var id in chain)
+                owners[id] = project;
+            chain.Clear();
+        }
+        return owners;
+    }
 }

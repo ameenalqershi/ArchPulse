@@ -87,6 +87,99 @@ public sealed class ArchitectureGuardianTests
     }
 
     [Fact]
+    public void ForbiddenRelationBetweenOpaqueSymbolIdsUsesCanonicalParentOwnership()
+    {
+        var source = new SourceEvidence("sha1", "Different.cs", 7, 2, EvidenceKind.Static);
+        var graph = Graph() with
+        {
+            Nodes =
+            [
+                .. Graph().Nodes.Take(3),
+                new GraphNode("opaque-source", GraphNodeKind.Method, "OpaqueSource",
+                    "project:Billing.Service", source),
+                new GraphNode("opaque-destination", GraphNodeKind.Method, "OpaqueDestination",
+                    "project:Billing.Contracts", source)
+            ],
+            Edges = [new GraphEdge("opaque-call", "opaque-source", "opaque-destination",
+                "Calls", source)]
+        };
+
+        var finding = Assert.Single(ArchitectureGuardian.Evaluate(graph, [Rule]));
+        Assert.Equal(RuleOutcome.Violation, finding.Outcome);
+        Assert.Equal("opaque-call", finding.EdgeId);
+    }
+
+    [Fact]
+    public void MisleadingSymbolPrefixesCannotForgeCanonicalProjectOwnership()
+    {
+        var source = new SourceEvidence("sha1", "Different.cs", 9, 2, EvidenceKind.Static);
+        var graph = Graph() with
+        {
+            Nodes =
+            [
+                .. Graph().Nodes.Take(3),
+                new GraphNode("Billing.Service::M:actually-contracts", GraphNodeKind.Method,
+                    "Misleading source", "project:Billing.Contracts", source),
+                new GraphNode("Billing.Contracts::M:actually-service", GraphNodeKind.Method,
+                    "Misleading target", "project:Billing.Service", source)
+            ],
+            Edges = [new GraphEdge("reversed-owner-call",
+                "Billing.Service::M:actually-contracts",
+                "Billing.Contracts::M:actually-service", "Calls", source)]
+        };
+
+        var finding = Assert.Single(ArchitectureGuardian.Evaluate(graph, [Rule]));
+        Assert.Equal(RuleOutcome.NotEvaluated, finding.Outcome);
+        Assert.Null(finding.EdgeId);
+    }
+
+    [Fact]
+    public void NestedSymbolsResolveTheirRealOwningProjectsWithoutNamePrefixes()
+    {
+        var source = new SourceEvidence("sha1", "Nested.cs", 4, 1, EvidenceKind.Static);
+        var graph = Graph() with
+        {
+            Nodes =
+            [
+                .. Graph().Nodes.Take(3),
+                new GraphNode("namespace-a", GraphNodeKind.Namespace, "Namespace A",
+                    "project:Billing.Service", source),
+                new GraphNode("class-a", GraphNodeKind.Class, "Class A", "namespace-a", source),
+                new GraphNode("method-a", GraphNodeKind.Method, "A", "class-a", source),
+                new GraphNode("namespace-b", GraphNodeKind.Namespace, "Namespace B",
+                    "project:Billing.Contracts", source),
+                new GraphNode("class-b", GraphNodeKind.Class, "Class B", "namespace-b", source),
+                new GraphNode("method-b", GraphNodeKind.Method, "B", "class-b", source)
+            ],
+            Edges = [new GraphEdge("nested-call", "method-a", "method-b", "Calls", source)]
+        };
+
+        var finding = Assert.Single(ArchitectureGuardian.Evaluate(graph, [Rule]));
+        Assert.Equal(RuleOutcome.Violation, finding.Outcome);
+        Assert.Equal("nested-call", finding.EdgeId);
+    }
+
+    [Fact]
+    public void DuplicateProjectLabelsMakeNameScopedRuleUnresolvableNotProven()
+    {
+        var source = new SourceEvidence("sha1", "Ambiguous.cs", 1, 1, EvidenceKind.Static);
+        var graph = Graph() with
+        {
+            Nodes =
+            [
+                .. Graph().Nodes,
+                new GraphNode("different-project-id", GraphNodeKind.Project,
+                    "Billing.Service", "solution:Billing", source)
+            ]
+        };
+
+        var finding = Assert.Single(ArchitectureGuardian.Evaluate(graph, [Rule]));
+        Assert.Equal(RuleOutcome.NotEvaluated, finding.Outcome);
+        Assert.Null(finding.EdgeId);
+        Assert.Contains("ambiguous", finding.Explanation, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void DisabledRuleDoesNotEmitFindings()
     {
         Assert.Empty(ArchitectureGuardian.Evaluate(Graph(), [Rule with { Enabled = false }]));
