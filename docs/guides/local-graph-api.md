@@ -162,3 +162,13 @@ readability, health status and missing-revision semantics. Tests are limited
 to this in-memory server and fixtures; no deployment hardening, source attestation,
 cryptographic content hashes, persisted index, filesystem safety audit, or
 production S02/T012 verification is implied.
+
+### Engine direct-call path traversal budget (T011, 2026-11-16)
+
+The local GraphQueries.ShortestStaticPath API now refuses maxVisited outside
+1..10,000 (including int.MaxValue). This prevents direct engine callers from
+silently disabling the visited-symbol traversal cap. Both HTTP and MCP callers
+already use 5,000; query semantics and response contracts are unchanged.
+This cap governs the visited BFS symbols, not the memory needed to load,
+validate, group or sort a full source GraphSnapshot: this is NOT proof of
+end-to-end bounded memory on very large repositories.

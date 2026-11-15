@@ -311,6 +311,19 @@ public sealed class GraphSnapshotStoreTests
         Assert.Empty(GraphQueries.ShortestStaticPath(graph, method3.SymbolId, method1.SymbolId));
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(10001)]
+    [InlineData(int.MaxValue)]
+    public void GraphPathTraversalRejectsInvalidOrUnlimitedVisitorBudget(int maxVisited)
+    {
+        var graph = MakeGraph("public class A {}", "rev");
+        var id = graph.Nodes[0].SymbolId;
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            GraphQueries.ShortestStaticPath(graph, id, id, maxVisited));
+    }
+
     [Fact]
     public void InvalidEvidenceRevisionIsRejected()
     {

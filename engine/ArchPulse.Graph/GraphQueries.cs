@@ -121,7 +121,11 @@ public static class GraphQueries
         GraphSnapshot snapshot, string from, string to, int maxVisited = 10000)
     {
         GraphSnapshotStore.Validate(snapshot);
-        if (maxVisited < 1) throw new ArgumentOutOfRangeException(nameof(maxVisited));
+        // A caller cannot disable the traversal budget with int.MaxValue.
+        // Bound the number of discovered vertices even for direct engine consumers.
+        if (maxVisited is < 1 or > 10_000)
+            throw new ArgumentOutOfRangeException(nameof(maxVisited),
+                "Graph traversal budget must be between 1 and 10000 visited symbols.");
         var ids = snapshot.Nodes.Select(n => n.SymbolId).ToHashSet(StringComparer.Ordinal);
         if (!ids.Contains(from) || !ids.Contains(to))
             throw new KeyNotFoundException("Source or destination symbol was not found.");
