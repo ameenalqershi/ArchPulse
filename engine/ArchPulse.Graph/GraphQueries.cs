@@ -8,8 +8,15 @@ public static class GraphQueries
         GraphSnapshotStore.Validate(snapshot);
         if (!snapshot.Nodes.Any(n => n.SymbolId == symbolId))
             throw new KeyNotFoundException($"Unknown symbol: {symbolId}");
-        return snapshot.Edges.Where(e => e.FromSymbolId == symbolId || e.ToSymbolId == symbolId)
-            .OrderBy(e => e.EdgeId, StringComparer.Ordinal).ToArray();
+        // Keep the legacy full-list contract bounded; high-degree nodes must
+        // use the existing keyset-paginated NeighborsPage API instead.
+        const int maxIncidentEdges = 10_000;
+        var incident = snapshot.Edges
+            .Where(e => e.FromSymbolId == symbolId || e.ToSymbolId == symbolId)
+            .Take(maxIncidentEdges + 1).ToArray();
+        if (incident.Length > maxIncidentEdges)
+            throw new InvalidOperationException("Graph neighbor result exceeds 10000 edges; use NeighborsPage.");
+        return incident.OrderBy(e => e.EdgeId, StringComparer.Ordinal).ToArray();
     }
 
     /// <summary>

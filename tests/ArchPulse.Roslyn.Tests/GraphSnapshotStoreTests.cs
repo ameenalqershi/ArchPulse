@@ -312,6 +312,24 @@ public sealed class GraphSnapshotStoreTests
     }
 
     [Fact]
+    public void LegacyNeighborsRejectsHighDegreeAndKeepsPagedAccess()
+    {
+        var graph = MakeGraph("public class A { public void Method() {} }", "rev");
+        var method = Assert.Single(graph.Nodes, n => n.Kind == GraphNodeKind.Method);
+        var project = Assert.Single(graph.Nodes, n => n.Kind == GraphNodeKind.Project);
+        var edges = Enumerable.Range(0, 10_001)
+            .Select(i => new GraphEdge($"artificial:{i:D5}", method.SymbolId,
+                project.SymbolId, "Calls", method.Evidence)).ToArray();
+        var expanded = graph with { Edges = edges };
+        GraphSnapshotStore.Validate(expanded);
+        Assert.Throws<InvalidOperationException>(() =>
+            GraphQueries.Neighbors(expanded, method.SymbolId));
+        var page = GraphQueries.NeighborsPage(expanded, method.SymbolId, 25);
+        Assert.Equal(25, page.Edges.Count);
+        Assert.True(page.HasMore);
+    }
+
+    [Fact]
     public void InvalidEvidenceRevisionIsRejected()
     {
         var graph = MakeGraph("public class A {}", "rev1");
