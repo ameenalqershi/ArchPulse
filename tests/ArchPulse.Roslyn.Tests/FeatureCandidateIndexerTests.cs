@@ -71,11 +71,13 @@ public sealed class FeatureCandidateIndexerTests
         var loaded = Assert.IsType<FeatureDiscoveryReport>(signalStore.Load(first.Graph));
         Assert.Equal(4, loaded.Signals.Count);
         Assert.Null(new FeatureCatalogStore(temp.Path).Load(first.Graph));
-        Assert.Null(signalStore.Load(first.Graph with { Revision = "rev-other",
+        Assert.Null(signalStore.Load(first.Graph with
+        {
+            Revision = "rev-other",
             Nodes = first.Graph.Nodes.Select(n => n with
-                { Evidence = n.Evidence with { Revision = "rev-other" } }).ToArray(),
+            { Evidence = n.Evidence with { Revision = "rev-other" } }).ToArray(),
             Edges = first.Graph.Edges.Select(e => e with
-                { Evidence = e.Evidence with { Revision = "rev-other" } }).ToArray()
+            { Evidence = e.Evidence with { Revision = "rev-other" } }).ToArray()
         }));
         Assert.Throws<InvalidOperationException>(() => signalStore.Save(first.Graph,
             first.FeatureSignals with { Diagnostics = ["proposed alternative"] }));
@@ -86,15 +88,15 @@ public sealed class FeatureCandidateIndexerTests
     {
         var analysis = await new SolutionGraphIndexer().AnalyzeSolutionAsync(FixtureSolution, "rev-1");
         var original = analysis.FeatureSignals;
-        var forged = original.Signals.Select((x,i) => i == 0 ? x with
-            { BusinessClaim = EvidenceKind.Verified } : x).ToArray();
+        var forged = original.Signals.Select((x, i) => i == 0 ? x with
+        { BusinessClaim = EvidenceKind.Verified } : x).ToArray();
         Assert.Throws<InvalidDataException>(() =>
             FeatureDiscoveryContract.Validate(analysis.Graph, original with { Signals = forged }));
         Assert.Throws<InvalidDataException>(() =>
             FeatureDiscoveryContract.Validate(analysis.Graph, original with { GraphRevision = "rev-2" }));
         Assert.Throws<InvalidDataException>(() =>
             FeatureDiscoveryContract.Validate(analysis.Graph, original with
-                { DiscoveryScope = "AuthenticatedObservedRoutes" }));
+            { DiscoveryScope = "AuthenticatedObservedRoutes" }));
         using var temp = new DirectoryFixture();
         var store = new FeatureDiscoveryStore(temp.Path);
         var path = store.Save(analysis.Graph, original);
@@ -117,6 +119,34 @@ public sealed class FeatureCandidateIndexerTests
         var report = FeatureCandidateIndexer.Discover(graph, tests, [("Sample", compilation)]);
         Assert.Empty(report.Signals);
         Assert.Equal("Unknown", report.RuntimeStatus);
+    }
+
+    [Fact]
+    public void MultipleHttpVerbAnnotationsDoNotSilentlyReportOnlyFirstVerb()
+    {
+        var source = """
+            namespace Microsoft.AspNetCore.Mvc {
+                public sealed class HttpGetAttribute : System.Attribute {}
+                public sealed class HttpPostAttribute : System.Attribute {}
+            }
+            public class OrdersController {
+                [Microsoft.AspNetCore.Mvc.HttpGet]
+                [Microsoft.AspNetCore.Mvc.HttpPost]
+                public void Submit() {}
+            }
+            """;
+        var tree = CSharpSyntaxTree.ParseText(source, path: "Orders.cs");
+        var references = ((string?)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") ?? "")
+            .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
+            .Select(path => MetadataReference.CreateFromFile(path));
+        var compilation = CSharpCompilation.Create("Sample", [tree], references,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+        var graph = StaticGraphIndexer.IndexCompilation("Sample", compilation, "v1");
+        var tests = MethodTestAssociationIndexer.Project(graph, [("Sample", compilation)]);
+        var report = FeatureCandidateIndexer.Discover(graph, tests, [("Sample", compilation)]);
+        Assert.Empty(report.Signals);
+        Assert.Single(report.Diagnostics);
+        Assert.Contains("Ambiguous multiple HTTP attributes", report.Diagnostics[0]);
     }
 
     private sealed class DirectoryFixture : IDisposable

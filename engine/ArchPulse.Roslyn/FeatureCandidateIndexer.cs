@@ -65,7 +65,17 @@ public static partial class FeatureCandidateIndexer
                     // ASP.NET host registered the controller or that filters ran.
                     if (method.ContainingType.Name.EndsWith("Controller", StringComparison.Ordinal))
                     {
-                        foreach (var attribute in method.GetAttributes())
+                        var recognized = method.GetAttributes().Where(attribute =>
+                            attribute.AttributeClass is not null &&
+                            MvcAttributes.ContainsKey(attribute.AttributeClass.ToDisplayString())).ToArray();
+                        if (recognized.Length > 1)
+                        {
+                            if (diagnostics.Count < 500)
+                                diagnostics.Add("Ambiguous multiple HTTP attributes; skipped action hint on " +
+                                                Truncate(symbolId, 200));
+                            continue; // The v1 contract permits only one HTTP verb per method.
+                        }
+                        foreach (var attribute in recognized)
                         {
                             if (attribute.AttributeClass is null ||
                                 !MvcAttributes.TryGetValue(attribute.AttributeClass.ToDisplayString(),

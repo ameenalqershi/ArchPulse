@@ -98,3 +98,11 @@ feature-scoped UI, DataJourney and observed feature Test Journeys. In particular
 this T024 report does **not** populate the T023 `BusinessFeature` catalog
 automatically. Specifications remain Proposed and no product acceptance
 is claimed.
+
+## Ambiguous multiple HTTP attributes (T024/S05)
+The v1 discovery contract stores at most one HTTP verb per controller method.
+When multiple recognized MVC verb annotations occur on one method, the indexer
+now emits a bounded diagnostic and skips that controller action hint instead
+of incorrectly presenting only the first verb. This is a conservative
+inference limitation, not proof of ASP.NET runtime registration. Test names,
+other handler signals and the existing report schema are unchanged.
