@@ -85,6 +85,44 @@ public sealed class CrossScopePortalApiTests
         Assert.Equal(HttpStatusCode.OK, valid.StatusCode);
     }
 
+    [Fact]
+    public async Task LocalScopeExpansionEnforcesGraphBudgetsAndExplicitUnknownAccess()
+    {
+        using var fixture = new Fixture();
+        var url = "/api/graphs/PortalDemo/r1/local-scope-expansion";
+        var page = await fixture.Client.GetFromJsonAsync<JsonElement>(
+            url + "?scopeSymbolId=root&maxNodes=2&maxEdges=1&depth=3");
+        Assert.Equal("archpulse.local-canonical-expansion/v1",
+            page.GetProperty("schema").GetString());
+        Assert.Equal("r1", page.GetProperty("revision").GetString());
+        Assert.Equal("AuthorizationNotEvaluated", page.GetProperty("accessStatus").GetString());
+        Assert.Equal(2, page.GetProperty("nodes").GetArrayLength());
+        Assert.Single(page.GetProperty("canonicalLinks").EnumerateArray());
+        Assert.True(page.GetProperty("partial").GetBoolean());
+        Assert.True(page.GetProperty("nodeBudgetReached").GetBoolean());
+        Assert.Equal("NoContinuationAvailable", page.GetProperty("continuationStatus").GetString());
+
+        foreach (var invalid in new[] {
+            "?scopeSymbolId=root&maxNodes=0",
+            "?scopeSymbolId=root&maxEdges=2001",
+            "?scopeSymbolId=root&depth=9",
+            "?scopeSymbolId=root&lens=runtime",
+            "?scopeSymbolId=%20" })
+        {
+            using var response = await fixture.Client.GetAsync(url + invalid);
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+
+        using var notFound = await fixture.Client.GetAsync(url + "?scopeSymbolId=missing");
+        Assert.Equal(HttpStatusCode.NotFound, notFound.StatusCode);
+        using var wrongRevision = await fixture.Client.GetAsync(
+            "/api/graphs/PortalDemo/r2/local-scope-expansion?scopeSymbolId=root");
+        Assert.Equal(HttpStatusCode.NotFound, wrongRevision.StatusCode);
+        using var post = await fixture.Client.PostAsJsonAsync(
+            url + "?scopeSymbolId=root", new { pretend = true });
+        Assert.Equal(HttpStatusCode.MethodNotAllowed, post.StatusCode);
+    }
+
     private sealed class Fixture : IDisposable
     {
         private readonly string _directory = Path.Combine(Path.GetTempPath(),

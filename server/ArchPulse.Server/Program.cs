@@ -391,6 +391,29 @@ app.MapGet("/api/graphs/{project}/{revision}/scope-topology",
         }
     });
 
+// T121/S27 experimental bounded local canonical expansion. Loopback only;
+// this does not evaluate permissions or return a resumable continuation.
+app.MapGet("/api/graphs/{project}/{revision}/local-scope-expansion",
+    (GraphSnapshotStore store, string project, string revision,
+     string? scopeSymbolId, string? lens, int? maxNodes, int? maxEdges, int? depth) =>
+    {
+        if (string.IsNullOrWhiteSpace(scopeSymbolId) || scopeSymbolId.Length > 2048 ||
+            (maxNodes.HasValue && maxNodes.Value is < 1 or > 1000) ||
+            (maxEdges.HasValue && maxEdges.Value is < 1 or > 2000) ||
+            (depth.HasValue && depth.Value is < 0 or > 8))
+            return Results.BadRequest();
+        var graph = store.Load(project, revision);
+        if (graph is null) return Results.NotFound();
+        try
+        {
+            var scope = LocalViewScopeDescriptor.Create(graph, scopeSymbolId,
+                lens ?? "architecture", maxNodes ?? 100, maxEdges ?? 200, depth ?? 1);
+            return Results.Ok(BoundedCanonicalExpansion.Execute(graph, scope));
+        }
+        catch (KeyNotFoundException) { return Results.NotFound(); }
+        catch (ArgumentException) { return Results.BadRequest(); }
+    });
+
 // T011/S02 local-only canonical parent -> children projection for graph drilldown.
 // Null parent returns roots; this is not authenticated S27 ViewScope.
 app.MapGet("/api/graphs/{project}/{revision}/children-page",
