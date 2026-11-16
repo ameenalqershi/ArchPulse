@@ -58,6 +58,33 @@ public sealed class LocalGraphApiTests
     }
 
     [Fact]
+    public async Task HighDegreeNeighborResponseIsSanitized422AndPagedFallbackWorks()
+    {
+        using var fixture = new ApiFixture();
+        var json = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(fixture.FirstGraphPath))!;
+        var edges = (System.Text.Json.Nodes.JsonArray)json["Edges"]!;
+        var sample = edges[0]!.DeepClone();
+        edges.Clear();
+        for (var i = 0; i < 10_001; i++)
+        {
+            var edge = sample.DeepClone();
+            edge["EdgeId"] = $"overflow-{i:D5}";
+            edges.Add(edge);
+        }
+        File.WriteAllText(fixture.FirstGraphPath, json.ToJsonString());
+        const string path = "/api/graphs/Billing/v1/neighbors?symbolId=";
+        var symbol = Uri.EscapeDataString("Billing.Service::M:CreateInvoice");
+        using var response = await fixture.Client.GetAsync(path + symbol);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("neighbors-page", body, StringComparison.Ordinal);
+        Assert.DoesNotContain(fixture.FirstGraphPath, body, StringComparison.Ordinal);
+        using var page = await fixture.Client.GetAsync(
+            "/api/graphs/Billing/v1/neighbors-page?symbolId=" + symbol + "&pageSize=25");
+        Assert.Equal(HttpStatusCode.OK, page.StatusCode);
+    }
+
+    [Fact]
     public async Task NeighborPageEndpointPreservesExactRevisionAndFailsClosed()
     {
         using var fixture = new ApiFixture();
