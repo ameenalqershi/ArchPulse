@@ -338,6 +338,11 @@ app.MapGet("/api/graphs/{project}/{revision}/neighbors",
         if (graph is null) return Results.NotFound();
         try { return Results.Ok(GraphQueries.Neighbors(graph, symbolId)); }
         catch (KeyNotFoundException) { return Results.NotFound(); }
+        catch (InvalidOperationException)
+        {
+            return Results.Problem("Full neighbor result exceeds the supported limit; use neighbors-page.",
+                statusCode: 422);
+        }
     });
 
 // T120/S27 partial: exact-revision, source-backed boundary references.
