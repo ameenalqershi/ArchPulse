@@ -68,8 +68,8 @@ public static class PortablePullRequestRecovery
     private static bool IsRepository(string? value)
     {
         if (value is null || !value.StartsWith("https://github.com/", StringComparison.Ordinal) ||
-            value.Length > 180 || value.Contains('?', StringComparison.Ordinal) ||
-            value.Contains('#', StringComparison.Ordinal)) return false;
+            value.Length > 180 || value.Contains('?') ||
+            value.Contains('#')) return false;
         var parts = value["https://github.com/".Length..].Split('/');
         return parts.Length == 2 && parts.All(IsSegment);
     }
