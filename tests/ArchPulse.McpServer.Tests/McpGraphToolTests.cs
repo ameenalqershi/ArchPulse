@@ -49,6 +49,31 @@ public sealed class McpGraphToolTests
     }
 
     [Fact]
+    public void SymbolContextHighDegreeReturnsSafeToolErrorInsteadOfThrowing()
+    {
+        using var fixture = new StoreFixture();
+        var source = new SourceEvidence("high-degree", "src.cs", 1, 1, EvidenceKind.Static);
+        var graph = new GraphSnapshot("Billing", "high-degree",
+        [
+            new("solution:Billing", GraphNodeKind.Solution, "Billing", null, source),
+            new("project:Billing.Service", GraphNodeKind.Project, "Service", "solution:Billing", source),
+            new("Billing.Service::M:Create", GraphNodeKind.Method, "Create", "project:Billing.Service", source),
+            new("Billing.Service::M:Apply", GraphNodeKind.Method, "Apply", "project:Billing.Service", source)
+        ],
+        Enumerable.Range(0, 10_001).Select(i =>
+            new GraphEdge($"call-{i:D5}", "Billing.Service::M:Create",
+                "Billing.Service::M:Apply", "Calls", source)).ToArray(), []);
+        fixture.Store.Save(graph);
+        var response = GraphTools.SymbolContext(fixture.Store, "Billing",
+            "high-degree", "Billing.Service::M:Create");
+        Assert.True(response.IsError);
+        Assert.Null(response.StructuredContent);
+        var message = Assert.IsType<TextContentBlock>(Assert.Single(response.Content));
+        Assert.Contains("bounded graph pagination", message.Text, StringComparison.Ordinal);
+        Assert.DoesNotContain("src.cs", message.Text, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void FindsDirectedStaticPathWithoutClaimingRuntimeTrace()
     {
         using var fixture = new StoreFixture();

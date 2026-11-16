@@ -50,7 +50,12 @@ public sealed class GraphTools
         if (graph is null) return Failure("No stored graph for the specified project and revision.");
         var node = graph.Nodes.FirstOrDefault(n => n.SymbolId == symbolId);
         if (node is null) return Failure("That exact Symbol ID is absent from this revision.");
-        var edges = GraphQueries.Neighbors(graph, symbolId);
+        IReadOnlyList<GraphEdge> edges;
+        try { edges = GraphQueries.Neighbors(graph, symbolId); }
+        catch (InvalidOperationException)
+        {
+            return Failure("Symbol relations exceed the legacy full-list limit; use bounded graph pagination.");
+        }
         var children = graph.Nodes.Where(n => n.ParentSymbolId == symbolId)
             .OrderBy(n => n.SymbolId, StringComparer.Ordinal).ToArray();
         return Success($"Exact {node.Kind} symbol: {node.SymbolId} (revision {revision}).",
@@ -68,8 +73,15 @@ public sealed class GraphTools
         {
             var route = GraphQueries.ShortestStaticPath(graph, fromSymbolId, toSymbolId, 5000);
             return Success($"Found {route.Count} sourced directed edges (empty also means no known path).",
-                new { project, revision, fromSymbolId, toSymbolId, edges = route,
-                      evidenceScope = "static-or-verified;not-a-runtime-trace" });
+                new
+                {
+                    project,
+                    revision,
+                    fromSymbolId,
+                    toSymbolId,
+                    edges = route,
+                    evidenceScope = "static-or-verified;not-a-runtime-trace"
+                });
         }
         catch (KeyNotFoundException) { return Failure("A selected symbol does not exist in this revision."); }
         catch (InvalidOperationException) { return Failure("Graph traversal safety limit exceeded."); }
@@ -91,14 +103,20 @@ public sealed class GraphTools
             var report = testStore.Load(graph);
             var links = report?.ForTarget(symbolId);
             return Success("Read-only, static direct test mapping. No observed execution or runner outcome.",
-                new { schema = "archpulse.method-test-selection/v1",
-                    project, revision, targetSymbolId = symbolId,
+                new
+                {
+                    schema = "archpulse.method-test-selection/v1",
+                    project,
+                    revision,
+                    targetSymbolId = symbolId,
                     mappingStatus = report is null ? "NotIndexed" :
                         links!.Count == 0 ? "Unmapped" : "MappedDirectStatic",
                     mappingScope = "RoslynStaticDirectOnly",
                     runnerDiscovery = "NotRunnerDiscovered",
-                    executionStatus = "Unknown", observedCoverage = false,
-                    links = links ?? [] });
+                    executionStatus = "Unknown",
+                    observedCoverage = false,
+                    links = links ?? []
+                });
         }
         catch (InvalidDataException) { return Failure("Stored test links failed source-evidence validation."); }
         catch (JsonException) { return Failure("Stored test links are malformed."); }
@@ -117,11 +135,16 @@ public sealed class GraphTools
             var report = journeys.Load(graph);
             if (report is null)
                 return Success("Local DataJourney NotIndexed, NOT evidence of no sensitive flow.",
-                    new { schema = LocalDataJourneyContract.Schema,
-                        project, revision, journeyStatus = "NotIndexed",
+                    new
+                    {
+                        schema = LocalDataJourneyContract.Schema,
+                        project,
+                        revision,
+                        journeyStatus = "NotIndexed",
                         scope = LocalDataJourneyContract.Scope,
                         runtimeStatus = LocalDataJourneyContract.RuntimeStatus,
-                        findings = Array.Empty<LocalDataFlowFinding>() });
+                        findings = Array.Empty<LocalDataFlowFinding>()
+                    });
             if (report.Findings.Count > 500)
                 return Failure("DataJourney findings exceed bounded local MCP response.");
             return Success("Conservative static annotation-only flow candidates; "
@@ -145,17 +168,30 @@ public sealed class GraphTools
             var report = discoveries.Load(graph);
             if (report is null)
                 return Success("Source signal discovery NotIndexed; this is not proof of zero features.",
-                    new { schema = FeatureDiscoveryContract.Schema, project, revision,
+                    new
+                    {
+                        schema = FeatureDiscoveryContract.Schema,
+                        project,
+                        revision,
                         discoveryStatus = "NotIndexed",
-                        scope = FeatureDiscoveryContract.Scope, runtimeStatus = "Unknown",
-                        signals = Array.Empty<FeatureCandidateSignal>() });
+                        scope = FeatureDiscoveryContract.Scope,
+                        runtimeStatus = "Unknown",
+                        signals = Array.Empty<FeatureCandidateSignal>()
+                    });
             if (report.Signals.Count > 500)
                 return Failure("Source signals exceed the bounded MCP response; use a smaller trusted fixture.");
             return Success("Inferred business candidates only; source syntax is static, no registered route, runner result or verified business mapping.",
-                new { schema = report.Schema, project, revision,
-                    discoveryStatus = "IndexedCandidates", scope = report.DiscoveryScope,
+                new
+                {
+                    schema = report.Schema,
+                    project,
+                    revision,
+                    discoveryStatus = "IndexedCandidates",
+                    scope = report.DiscoveryScope,
                     runtimeStatus = report.RuntimeStatus,
-                    signals = report.Signals, diagnostics = report.Diagnostics });
+                    signals = report.Signals,
+                    diagnostics = report.Diagnostics
+                });
         }
         catch (InvalidDataException) { return Failure("Stored feature signals failed validation."); }
         catch (JsonException) { return Failure("Stored feature signals are unreadable."); }
@@ -198,10 +234,16 @@ public sealed class GraphTools
             var catalog = features.Load(graph);
             if (catalog is null)
                 return Success("Candidate feature catalog NotIndexed; no human review claims.",
-                    new { schema = FeatureReviewJournal.Schema, project, revision,
-                        catalogStatus = "NotIndexed", reviewStatus = "NotIndexed",
+                    new
+                    {
+                        schema = FeatureReviewJournal.Schema,
+                        project,
+                        revision,
+                        catalogStatus = "NotIndexed",
+                        reviewStatus = "NotIndexed",
                         scope = FeatureReviewJournal.Scope,
-                        history = Array.Empty<FeatureReviewReceipt>() });
+                        history = Array.Empty<FeatureReviewReceipt>()
+                    });
             var summary = journal.Read(graph, catalog);
             if (summary.History.Count > 200 || summary.Members.Count > 500)
                 return Failure("Review summary exceeds bounded MCP output.");
@@ -227,9 +269,17 @@ public sealed class GraphTools
             var catalog = features.Load(before);
             if (catalog is null)
                 return Success("Feature catalog NotIndexed at FROM revision; no impact assertions.",
-                    new { schema = FeatureImpactAnalyzer.Schema, project, fromRevision, toRevision,
-                        catalogStatus = "NotIndexed", evidenceScope = FeatureImpactAnalyzer.Scope,
-                        runtimeStatus = "Unknown", impacts = Array.Empty<FeatureImpactSignal>() });
+                    new
+                    {
+                        schema = FeatureImpactAnalyzer.Schema,
+                        project,
+                        fromRevision,
+                        toRevision,
+                        catalogStatus = "NotIndexed",
+                        evidenceScope = FeatureImpactAnalyzer.Scope,
+                        runtimeStatus = "Unknown",
+                        impacts = Array.Empty<FeatureImpactSignal>()
+                    });
             var report = FeatureImpactAnalyzer.Assess(before, after, catalog);
             if (report.Impacts.Count > 300)
                 return Failure("Candidate impacts exceed the bounded local MCP response.");
