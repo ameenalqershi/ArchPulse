@@ -74,6 +74,29 @@ public sealed class McpGraphToolTests
     }
 
     [Fact]
+    public void NeighborsPageReturnsExactEvidenceAndRejectsInvalidCursor()
+    {
+        using var fixture = new StoreFixture();
+        const string source = "Billing.Service::M:Create";
+        var first = GraphTools.NeighborsPage(fixture.Store, "Billing", "golden-mcp", source, 1);
+        Assert.NotEqual(true, first.IsError);
+        var json = Assert.IsType<JsonElement>(first.StructuredContent);
+        Assert.Equal("golden-mcp", json.GetProperty("revision").GetString());
+        Assert.Equal("call", Assert.Single(json.GetProperty("edges").EnumerateArray())
+            .GetProperty("edgeId").GetString());
+        Assert.False(json.GetProperty("hasMore").GetBoolean());
+
+        var invalid = GraphTools.NeighborsPage(fixture.Store, "Billing",
+            "golden-mcp", source, 1, "not-an-incident-edge");
+        Assert.True(invalid.IsError);
+        Assert.Null(invalid.StructuredContent);
+        var tooLarge = GraphTools.NeighborsPage(fixture.Store, "Billing", "golden-mcp", source, 101);
+        Assert.True(tooLarge.IsError);
+        var missing = GraphTools.NeighborsPage(fixture.Store, "Billing", "missing", source);
+        Assert.True(missing.IsError);
+    }
+
+    [Fact]
     public void FindsDirectedStaticPathWithoutClaimingRuntimeTrace()
     {
         using var fixture = new StoreFixture();

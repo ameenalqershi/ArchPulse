@@ -62,6 +62,23 @@ public sealed class GraphTools
             new { project, revision, symbol = node, children, edges });
     }
 
+    [McpServerTool(Name = "archpulse_graph_neighbors_page", ReadOnly = true)]
+    [Description("Read at most 100 exact-revision incident graph edges per page; the cursor is an exclusive existing EdgeId, not an authorization token.")]
+    public static CallToolResult NeighborsPage(
+        GraphSnapshotStore store, string project, string revision, string symbolId,
+        int pageSize = 50, string? afterEdgeId = null)
+    {
+        var graph = ReadValidated(store, project, revision);
+        if (graph is null) return Failure("No stored graph for the specified project and revision.");
+        try
+        {
+            var page = GraphQueries.NeighborsPage(graph, symbolId, pageSize, afterEdgeId);
+            return Success("Exact stored graph relations; source evidence only, no observed execution or authorization proof.", page);
+        }
+        catch (KeyNotFoundException) { return Failure("The requested symbol is absent from this exact revision."); }
+        catch (ArgumentException) { return Failure("Invalid page size, symbol or incident-edge cursor for this revision."); }
+    }
+
     [McpServerTool(Name = "archpulse_find_evidenced_path", ReadOnly = true)]
     [Description("Return the shortest directed evidence-backed static/verified call or dependency path, never a claimed runtime execution trace.")]
     public static CallToolResult Path(GraphSnapshotStore store,
